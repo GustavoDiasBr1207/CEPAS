@@ -1,85 +1,109 @@
-const express = require("express");
-const oracledb = require("oracledb");
-const cors = require("cors");
-const path = require("path");
+// ==============================
+// Backend Oracle ADB com Wallet
+// ==============================
+
+const express = require('express');
+const oracledb = require('oracledb');
+const cors = require('cors');
+const path = require('path');
+const fs = require('fs');
 
 const app = express();
 app.use(cors());
-app.use(express.json());
 
-// Configurações do Oracle para o Autonomous Database
-// Certifique-se de que a carteira de segurança está em um diretório acessível pelo backend.
-// Recomenda-se colocar o arquivo zip da carteira no diretório raiz do projeto e descompactá-lo.
-oracledb.initOracleClient({
-  // Por padrão, a biblioteca 'oracledb' irá procurar por um arquivo 'sqlnet.ora'
-  // na pasta TNS_ADMIN. Se você usar o 'configDir' e a 'connectString' for um TNS alias,
-  // isso já deve funcionar.
-  // Caso contrário, você pode especificar o caminho do instant client.
-  // libDir: path.join(__dirname, 'instantclient_19_8'),
-  configDir: path.join(__dirname, 'wallet') // Substitua 'wallet' pelo nome da pasta da sua carteira
-});
+// Define o caminho da wallet
+const walletPath = 'C:\\OracleWallet';
 
-// Configurações do banco de dados
+// ------------------------------
+// Verifica se a wallet existe e os arquivos essenciais
+// ------------------------------
+const requiredFiles = ['cwallet.sso', 'ewallet.p12', 'sqlnet.ora', 'tnsnames.ora', 'truststore.jks'];
+if (!fs.existsSync(walletPath)) {
+  console.error(`❌ Erro: O caminho da wallet "${walletPath}" não foi encontrado.`);
+  process.exit(1);
+}
+
+for (const file of requiredFiles) {
+  const filePath = path.join(walletPath, file);
+  if (!fs.existsSync(filePath)) {
+    console.error(`❌ Erro: Arquivo "${file}" não encontrado na wallet.`);
+    process.exit(1);
+  } else {
+    console.log(`✅ ${file} pode ser lido.`);
+  }
+}
+
+// ------------------------------
+// Inicializa Oracle Client (Thick) para TCPS/Wallet
+// ------------------------------
+try {
+  oracledb.initOracleClient({ libDir: 'C:\\Oracle\\instantclient_23_9' });
+  console.log('✅ Oracle Client inicializado com sucesso.');
+} catch (err) {
+  console.error('❌ Erro ao inicializar o Oracle Client:', err);
+  process.exit(1);
+}
+
+// ------------------------------
+// Configurações de conexão
+// ------------------------------
 const dbConfig = {
-  user: "gustavodl",
-  password: "CepasDatabase@2025",
-  // A string de conexão do Autonomous Database que você forneceu.
-  // Você pode escolher entre 'cepasdb_high', 'cepasdb_low', 'cepasdb_medium', 'cepasdb_tp', ou 'cepasdb_tpurgent'.
-  connectString: "cepasdb_high"
+  user: 'ADMIN',             // seu usuário
+  password: 'CepasDatabase@2025', // sua senha
+  connectString: 'cepasdb_high',  // tnsnames.ora
+  externalAuth: false,
 };
 
-// Rota de exemplo para listar usuários
-app.get("/usuarios", async (req, res) => {
+// ------------------------------
+// Função para buscar dados de uma tabela
+// ------------------------------
+async function fetchTableData(tableName) {
   let connection;
   try {
     connection = await oracledb.getConnection(dbConfig);
-    const result = await connection.execute("SELECT * FROM usuarios");
-    
-    // O resultado da consulta é um array de arrays. Para facilitar o consumo no frontend React,
-    // é comum mapear os dados para objetos JSON mais legíveis.
-    const formattedRows = result.rows.map(row => ({
-      id: row[0],
-      nome: row[1],
-      email: row[2]
-    }));
-    res.json(formattedRows);
+    console.log(`✅ Conexão estabelecida para a tabela "${tableName}"`);
+
+    const result = await connection.execute(`SELECT * FROM "${tableName}"`);
+
+    const rows = result.rows.map(row => {
+      const obj = {};
+      result.metaData.forEach((column, index) => {
+        obj[column.name.toLowerCase()] = row[index];
+      });
+      return obj;
+    });
+
+    return rows;
+
   } catch (err) {
-    console.error("Erro na conexão com o banco de dados:", err);
-    res.status(500).send("Erro no banco");
+    console.error('❌ Erro na conexão ou query:', err);
+    throw err;
   } finally {
     if (connection) {
       try {
         await connection.close();
+        console.log('🔒 Conexão fechada.');
       } catch (err) {
-        console.error("Erro ao fechar a conexão:", err);
+        console.error('❌ Erro ao fechar conexão:', err);
       }
     }
   }
-});
+}
 
-// Rota de exemplo para adicionar um novo usuário
-app.post("/usuarios", async (req, res) => {
-  let connection;
+// ------------------------------
+// Rotas da API
+// ------------------------------
+app.get('/tabela/:tableName', async (req, res) => {
+  const tableName = req.params.tableName;
   try {
-    const { nome, email } = req.body;
-    connection = await oracledb.getConnection(dbConfig);
-    const sql = "INSERT INTO usuarios (nome, email) VALUES (:1, :2)";
-    const binds = [nome, email];
-    await connection.execute(sql, binds, { autoCommit: true });
-    res.status(201).send("Usuário adicionado com sucesso!");
+    const data = await fetchTableData(tableName);
+    res.status(200).json(data);
   } catch (err) {
-    console.error("Erro ao adicionar usuário:", err);
-    res.status(500).send("Erro ao adicionar usuário");
-  } finally {
-    if (connection) {
-      try {
-        await connection.close();
-      } catch (err) {
-        console.error("Erro ao fechar a conexão:", err);
-      }
-    }
+    res.status(500).json({ error: `Erro ao buscar dados da tabela ${tableName}: ${err.message}` });
   }
 });
 
-// Rodar o servidor
-app.listen(5000, () => console.log("Backend rodando na porta 5000"));
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`✅ Backend rodando em http://localhost:${PORT}`);
+});
