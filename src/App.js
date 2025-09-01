@@ -1,137 +1,55 @@
-import React, { useState } from 'react';
-import { createRoot } from 'react-dom/client';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import Consulta from './components/Consulta';
+import './App.css'; // Mantenha outros imports de CSS aqui
+
+// Componente simples para a página inicial
+const Home = () => (
+  <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-4">
+    <div className="bg-white p-8 rounded-lg shadow-md text-center">
+      <h1 className="text-3xl font-bold text-gray-800 mb-4">
+        Bem-vindo ao sistema de Consulta Oracle!
+      </h1>
+      <p className="text-gray-600 mb-6">
+        Use a navegação acima para acessar as funcionalidades.
+      </p>
+      <Link 
+        to="/consulta" 
+        className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold shadow-md transition-transform transform hover:scale-105"
+      >
+        Ir para a Consulta
+      </Link>
+    </div>
+  </div>
+);
 
 const App = () => {
-  const [tableName, setTableName] = useState('');
-  const [data, setData] = useState([]);
-  const [columns, setColumns] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState(
-    "Digite o nome da tabela e clique em Consultar."
-  );
-
-  const fetchData = async () => {
-    if (!tableName) {
-      setStatus("❌ Informe o nome da tabela!");
-      return;
-    }
-
-    setLoading(true);
-    setData([]);
-    setColumns([]);
-    setStatus(`Conectando ao backend e consultando a tabela ${tableName}...`);
-
-    try {
-      const response = await fetch(`http://localhost:5000/tabela/${tableName.toUpperCase()}`);
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Erro de rede: ${response.statusText}. Detalhes: ${errorText}`);
-      }
-
-      const jsonData = await response.json();
-
-      if (jsonData.length === 0) {
-        setStatus("⚠️ Nenhum dado encontrado.");
-      } else {
-        // Filtra colunas que são objetos complexos (LOBs, streams etc.)
-        const filteredData = jsonData.map(row => {
-          const newRow = {};
-          Object.entries(row).forEach(([key, value]) => {
-            if (
-              value !== null &&
-              typeof value !== 'string' &&
-              typeof value !== 'number' &&
-              typeof value !== 'boolean'
-            ) {
-              newRow[key] = '[Objeto não renderizável]';
-            } else {
-              newRow[key] = value;
-            }
-          });
-          return newRow;
-        });
-
-        setData(filteredData);
-        setColumns(Object.keys(filteredData[0]));
-        setStatus(`✅ Consulta realizada com sucesso!`);
-      }
-    } catch (err) {
-      console.error(err);
-      if (err.message.includes("ORA-28759")) {
-        setStatus(
-          `❌ Erro na consulta! O backend não conseguiu acessar a pasta da wallet.`
-        );
-      } else {
-        setStatus(`❌ Erro na consulta! Detalhes: ${err.message}`);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter') fetchData();
-  };
-
-  const renderTable = () => {
-    if (!data || data.length === 0) return <p>Nenhum dado encontrado.</p>;
-
-    return (
-      <div className="overflow-x-auto mt-6">
-        <table className="min-w-full bg-white border border-gray-200">
-          <thead className="bg-gray-100">
-            <tr>
-              {columns.map((col) => (
-                <th key={col} className="py-2 px-4 border-b">
-                  {col}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {data.map((row, rowIndex) => (
-              <tr key={rowIndex} className="hover:bg-gray-50">
-                {columns.map((col) => (
-                  <td key={col} className="py-2 px-4 border-b">
-                    {row[col] !== null ? row[col].toString() : ''}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    );
-  };
-
   return (
-    <div className="p-4 min-h-screen bg-gray-100 flex flex-col items-center">
-      <div className="bg-white p-6 rounded shadow w-full max-w-2xl">
-        <h1 className="text-2xl font-bold mb-2 text-center">
-          Consulta Dinâmica Oracle
-        </h1>
-        <input
-          type="text"
-          placeholder="Nome da tabela"
-          value={tableName}
-          onChange={(e) => setTableName(e.target.value)}
-          onKeyPress={handleKeyPress}
-          className="w-full border p-2 rounded mb-2"
-          disabled={loading}
-        />
-        <button
-          onClick={fetchData}
-          disabled={loading || tableName.trim() === ''}
-          className="bg-blue-600 text-white px-4 py-2 rounded"
-        >
-          {loading ? 'Consultando...' : 'Consultar'}
-        </button>
+    <Router>
+      <div className="App">
+        {/* Barra de navegação */}
+        <nav className="bg-gray-800 p-4">
+          <ul className="flex justify-center space-x-6 text-white font-medium">
+            <li>
+              <Link to="/" className="hover:text-gray-300 transition-colors">
+                Início
+              </Link>
+            </li>
+            <li>
+              <Link to="/consulta" className="hover:text-gray-300 transition-colors">
+                Consulta
+              </Link>
+            </li>
+          </ul>
+        </nav>
 
-        <p className="mt-4">{status}</p>
-
-        {data.length > 0 && renderTable()}
+        {/* Definição das rotas */}
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/consulta" element={<Consulta />} />
+        </Routes>
       </div>
-    </div>
+    </Router>
   );
 };
 
