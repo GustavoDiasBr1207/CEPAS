@@ -1,0 +1,3 @@
+set TNS_ADMIN=C:\Users\gusta\meu-app\backend\wallet
+
+echo %TNS_ADMIN%
