@@ -21,7 +21,7 @@ const Consulta = () => {
     setStatus(`Conectando ao backend e consultando a tabela ${tableName}...`);
 
     try {
-      const response = await fetch(`http://localhost:5000/tabela/${tableName.toUpperCase()}`);
+      const response = await fetch(`http://localhost:3001/tabela/${tableName.toUpperCase()}`);
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`Erro de rede: ${response.statusText}. Detalhes: ${errorText}`);

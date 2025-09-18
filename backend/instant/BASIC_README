@@ -1,0 +1,19 @@
+Basic Package Information
+=========================
+
+Thu Jul 24 18:05:21 UTC 2025
+
+Client Shared Library 64-bit - 23.9.0.25.07
+
+System name:	Linux
+Release:	5.4.17-2136.342.5.el8uek.x86_64
+Version:	#3 SMP Thu Mar 20 19:38:44 PDT 2025
+Machine:	x86_64
+
+TIMEZONE INFORMATION
+--------------------
+Operating in ORACLE_HOME environment.
+
+Small timezone file = timezone_43.dat
+Large timezone file = timezlrg_43.dat
+

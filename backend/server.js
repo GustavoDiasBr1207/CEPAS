@@ -1,3 +1,5 @@
+console.log('🚀 Iniciando backend...');
+
 const express = require('express');
 const oracledb = require('oracledb');
 const cors = require('cors');
@@ -7,55 +9,33 @@ const fs = require('fs');
 const app = express();
 app.use(cors());
 
-// Inicializa o Instant Client corretamente (apenas uma vez, no início)
+// Define o caminho para o Oracle Instant Client dentro do contêiner Docker
+const instantClientPath = '/usr/src/app/instant';
+
+// Inicializa o Instant Client
 try {
-  oracledb.initOracleClient({ libDir: 'C:\\Oracle\\instantclient_23_9' });
+  oracledb.initOracleClient({ libDir: instantClientPath });
+  console.log('✅ Oracle Instant Client inicializado com sucesso.');
 } catch (err) {
-  console.error('❌ Erro ao inicializar o Instant Client:', err);
+  console.error('❌ Erro ao inicializar o Instant Client. Verifique se a pasta "instant" está no diretório correto.', err);
   process.exit(1); 
 }
 
-// Configurando o caminho da wallet dentro do diretório do backend
-const walletPath = path.join(__dirname, 'wallet'); 
-
-// Adiciona uma verificação para garantir que a pasta da wallet existe
-if (!fs.existsSync(walletPath)) {
-  console.error(`❌ Erro: O caminho da wallet "${walletPath}" não foi encontrado. Por favor, certifique-se de que a pasta existe.`);
-  process.exit(1);
-}
-
-// Tenta ler o conteúdo da wallet manualmente
-try {
-  const tnsnamesContent = fs.readFileSync(path.join(walletPath, 'tnsnames.ora'), 'utf8');
-  const sqlnetContent = fs.readFileSync(path.join(walletPath, 'sqlnet.ora'), 'utf8');
-} catch (err) {
-  console.error(`❌ Erro ao ler os arquivos da wallet. Por favor, verifique as permissões da pasta "${walletPath}". Detalhes:`, err.message);
-  process.exit(1);
-}
-
-// Configurações de conexão (usando as credenciais do banco)
+// Configuração de conexão com o banco Oracle
 const dbConfig = {
   user: 'ADMIN', 
   password: 'CepasDatabase@2025',
   connectString: 'cepasdb_high',
-  // Propriedades para usar a wallet em vez do TNS_ADMIN
-  externalAuth: false,
-  walletLocation: walletPath 
 };
 
-/**
- * Conecta ao banco de dados Oracle e executa uma query simples.
- * @returns {Promise<Array>} A lista de usuários ou um erro.
- */
+// Função para buscar dados de uma tabela
 async function fetchTableData(tableName) {
   let connection;
   try {
     connection = await oracledb.getConnection(dbConfig);
     console.log('✅ Conexão com o banco de dados estabelecida com sucesso!');
 
-    const result = await connection.execute(
-      `SELECT * FROM "${tableName}"`
-    );
+    const result = await connection.execute(`SELECT * FROM "${tableName}"`);
 
     const rows = result.rows.map(row => {
       const obj = {};
@@ -82,7 +62,7 @@ async function fetchTableData(tableName) {
   }
 }
 
-// Rota da API para buscar dados de forma dinâmica
+// Rota para buscar dados de uma tabela específica
 app.get('/tabela/:tableName', async (req, res) => {
   const tableName = req.params.tableName;
   try {
@@ -93,7 +73,20 @@ app.get('/tabela/:tableName', async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 5000;
+// Rota /ping para teste de conexão com o banco
+app.get('/ping', async (req, res) => {
+  try {
+    const connection = await oracledb.getConnection(dbConfig);
+    await connection.execute('SELECT 1 FROM DUAL');
+    await connection.close();
+    res.status(200).send('✅ Conexão com o banco Oracle está OK!');
+  } catch (err) {
+    console.error('❌ Erro na rota /ping:', err);
+    res.status(500).send('❌ Falha na conexão com o banco Oracle.');
+  }
+});
+
+const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`✅ Backend rodando em http://localhost:${PORT}`);
 });

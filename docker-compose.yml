@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.backend
+    container_name: cepas-backend
+    ports:
+      - "3001:3001"
+    environment:
+      - TNS_ADMIN=/usr/src/app/wallet
+    restart: always
+    stdin_open: true
+    tty: true
+    networks:
+      - cepas-network
+    entrypoint: ["/usr/src/app/entrypoint.sh"]
+
+  frontend:
+    build:
+      context: ./
+      dockerfile: Dockerfile.frontend
+    container_name: cepas-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: always
+    networks:
+      - cepas-network
+
+networks:
+  cepas-network:
+    driver: bridge
