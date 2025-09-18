@@ -1,0 +1,2 @@
+backend/instant/libclntsh.so.23.1 filter=lfs diff=lfs merge=lfs -text
+backend/instant/libociei.so filter=lfs diff=lfs merge=lfs -text
