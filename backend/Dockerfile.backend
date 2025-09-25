@@ -9,33 +9,34 @@ RUN apt-get update && apt-get install -y \
   unzip \
   && rm -rf /var/lib/apt/lists/*
 
-# Define diretório de trabalho
 WORKDIR /usr/src/app
 
-# Copia bibliotecas Oracle e wallet
-COPY instant/ ./instant/
-COPY wallet/ ./wallet/
-
-# Copia arquivos de dependência
+# Copia e instala dependências Node.js
 COPY package*.json ./
-
-# Instala dependências de produção
 RUN npm install --production
 
-# Copia o restante da aplicação
+# Copia o restante do código do backend
 COPY . .
 
-# Define variáveis de ambiente para Oracle
+# Copia apenas o zip do Instant Client e o wallet
+COPY instant/instant.zip ./instant.zip
+COPY wallet/ ./wallet/
+
+# Extrai o zip dentro do container e remove o zip
+RUN unzip instant.zip -d instant && rm instant.zip
+
+# Cria links simbólicos (ignora se já existirem)
+RUN ln -sf instant/libclntsh.so.23.1 instant/libclntsh.so \
+ && ln -sf instant/libclntshcore.so.23.1 instant/libclntshcore.so \
+ && ln -sf instant/libocci.so.23.1 instant/libocci.so
+
+# Copia entrypoint
+COPY entrypoint.sh /usr/src/app/entrypoint.sh
+RUN chmod +x /usr/src/app/entrypoint.sh
+
+# Variáveis de ambiente para Oracle
 ENV LD_LIBRARY_PATH=/usr/src/app/instant
 ENV TNS_ADMIN=/usr/src/app/wallet
 
-# Expõe a porta usada pelo backend
 EXPOSE 3001
-
-# Comando para iniciar o servidor
 CMD ["node", "server.js"]
-
-# No final do Dockerfile
-COPY entrypoint.sh /usr/src/app/entrypoint.sh
-RUN chmod +x /usr/src/app/entrypoint.sh
-ENTRYPOINT ["/usr/src/app/entrypoint.sh"]
