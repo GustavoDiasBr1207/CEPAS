@@ -30,13 +30,11 @@ RUN ln -sf instant/libclntsh.so.23.1 instant/libclntsh.so \
  && ln -sf instant/libclntshcore.so.23.1 instant/libclntshcore.so \
  && ln -sf instant/libocci.so.23.1 instant/libocci.so
 
-# Copia entrypoint
-COPY entrypoint.sh /usr/src/app/entrypoint.sh
-RUN chmod +x /usr/src/app/entrypoint.sh
-
 # Variáveis de ambiente para Oracle
 ENV LD_LIBRARY_PATH=/usr/src/app/instant
 ENV TNS_ADMIN=/usr/src/app/wallet
 
 EXPOSE 3001
+
+# Inicia o backend
 CMD ["node", "server.js"]

@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   backend:
     build:
@@ -11,11 +9,8 @@ services:
     environment:
       - TNS_ADMIN=/usr/src/app/wallet
     restart: always
-    stdin_open: true
-    tty: true
     networks:
       - cepas-network
-    entrypoint: ["/usr/src/app/entrypoint.sh"]
 
   frontend:
     build:
