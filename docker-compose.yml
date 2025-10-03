@@ -21,6 +21,10 @@ services:
       - "80:80"
     depends_on:
       - backend
+    # >>> MUDANÇA AQUI: Adicionando a variável para compatibilidade com cepasService.js <<<
+    environment:
+      - REACT_APP_API_BASE_URL=http://backend:3001/api
+    # >>> FIM DA MUDANÇA <<<
     restart: always
     networks:
       - cepas-network

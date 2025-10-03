@@ -1,8 +1,9 @@
 # Imagem base compatível com Oracle Instant Client
+# Usando a tag node:18.x-bullseye para maior clareza e estabilidade
 FROM node:18-bullseye
 
 # Instala bibliotecas necessárias para o Oracle Instant Client
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
   libaio1 \
   libnsl-dev \
   libstdc++6 \
@@ -12,26 +13,33 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /usr/src/app
 
 # Copia e instala dependências Node.js
+# Copiamos apenas package*.json para cache
 COPY package*.json ./
 RUN npm install --production
 
 # Copia o restante do código do backend
 COPY . .
 
-# Copia apenas o zip do Instant Client e o wallet
+# Copia o zip do Instant Client e o wallet (Certifique-se de que a pasta 'instant' e 'wallet' existem)
+# O caminho para o Instant Client aqui é assumido. Ajuste se o zip estiver em outra pasta.
 COPY instant/instant.zip ./instant.zip
+# A pasta wallet/ é crucial para o TNS_ADMIN
 COPY wallet/ ./wallet/
 
-# Extrai o zip dentro do container e remove o zip
+# Extrai o zip do Instant Client dentro do diretório 'instant' e remove o zip
 RUN unzip instant.zip -d instant && rm instant.zip
 
-# Cria links simbólicos (ignora se já existirem)
-RUN ln -sf instant/libclntsh.so.23.1 instant/libclntsh.so \
- && ln -sf instant/libclntshcore.so.23.1 instant/libclntshcore.so \
- && ln -sf instant/libocci.so.23.1 instant/libocci.so
+# Cria links simbólicos (necessário para o Instant Client funcionar corretamente)
+# Usando 'ln -s' para criar links simbólicos de forma mais robusta
+RUN cd instant && \
+  ln -s libclntsh.so.23.1 libclntsh.so && \
+  ln -s libclntshcore.so.23.1 libclntshcore.so && \
+  ln -s libocci.so.23.1 libocci.so
 
-# Variáveis de ambiente para Oracle
+# Variável de ambiente crucial para o Instant Client
 ENV LD_LIBRARY_PATH=/usr/src/app/instant
+
+# Variável TNS_ADMIN já está definida no docker-compose.yaml, mas a mantemos aqui por garantia
 ENV TNS_ADMIN=/usr/src/app/wallet
 
 EXPOSE 3001
