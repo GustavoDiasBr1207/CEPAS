@@ -1,44 +1,43 @@
-/**
- * dbConfig.js
- * * Configurações de conexão para o OracleDB usando o modo Thick (Client) 
- * com Oracle Wallet e TNS_ADMIN.
- */
+const oracledb = require('oracledb');
+const path = require('path'); // Novo módulo importado
 
-// 1. Configurações Globais do Oracle Client
-// Você deve definir essas variáveis antes de qualquer chamada ao oracledb
-// para garantir que o cliente saiba onde procurar os arquivos de conexão (Wallet)
-// e a biblioteca Instant Client (Modo Thick).
+// ----------------------------------------------------
+// 1. Configurações Globais do Oracle Client (Modo Thick)
+// ----------------------------------------------------
 
-// Define TNS_ADMIN no ambiente Node.js. 
-// Isso substitui a necessidade de "walletLocation" no objeto de conexão.
-process.env.TNS_ADMIN = 'C:\\OracleWallet';
+// Define TNS_ADMIN de forma PORTÁTIL.
+// __dirname aponta para o diretório atual (backend/). 
+// Isso resolve para: C:\Users\gusta\Downloads\CEPAS-1\backend\wallet
+process.env.TNS_ADMIN = path.join(__dirname, 'wallet');
+console.log(`Configuração TNS_ADMIN definida como: ${process.env.TNS_ADMIN}`);
 
-// Inicializa o Oracle Client no modo Thick para usar TCPS/Wallet
-// Esta linha é crucial e deve ser executada antes de qualquer chamada oracledb.getConnection
+
+// Caminho para o Oracle Instant Client. 
+// É recomendado usar uma variável de ambiente, mas manteremos a sua como fallback.
+const instantClientPath = path.join(__dirname, 'instant'); 
+
 try {
-    const oracledb = require('oracledb');
-    // Ajuste o caminho para o seu Instant Client
-    oracledb.initOracleClient({ libDir: 'C:\\Oracle\\instantclient_23_9' });
+    oracledb.initOracleClient({ libDir: instantClientPath });
     console.log('✅ [dbConfig] Oracle Client inicializado com sucesso.');
+    console.log(`Path do Instant Client (libDir): ${instantClientPath}`);
 } catch (err) {
-    // Apenas loga o erro, mas não encerra. Se o cliente não iniciar, 
-    // a conexão principal irá falhar.
-    console.error('❌ [dbConfig] Erro ao inicializar Oracle Client:', err.message);
+    console.error('❌ [dbConfig] Erro ao inicializar Oracle Client. Verifique o caminho libDir:', err.message);
+    // IMPORTANTE: Não lançar erro aqui. A falha real ocorrerá em getConnection.
 }
 
 
+// ----------------------------------------------------
 // 2. Objeto de Configuração para Conexão
-// Este objeto será usado pela função oracledb.getConnection(config).
+// ----------------------------------------------------
 const dbConfig = {
-    // ⚠️ Recomenda-se usar process.env.DB_USER/DB_PASSWORD para credenciais reais!
-    user: 'ADMIN',             
+    // Credenciais (Recomenda-se usar process.env para produção)
+    user: 'ADMIN',
     password: 'CepasDatabase@2025', 
     
-    // O valor de connectString deve corresponder a um alias dentro do tnsnames.ora
-    // que está localizado na pasta definida por TNS_ADMIN.
+    // connectionString resolve para o alias dentro do tnsnames.ora (em TNS_ADMIN)
     connectionString: 'cepasdb_high',
     
-    // Configurações do Pool (Boas práticas para um Backend/API)
+    // Configurações do Pool
     poolMin: 10,
     poolMax: 10,
     poolIncrement: 0,
@@ -49,4 +48,4 @@ const dbConfig = {
 // Exportação
 // ----------------------------------------------------
 
-module.exports = dbConfig;
+module.exports = dbConfig; 

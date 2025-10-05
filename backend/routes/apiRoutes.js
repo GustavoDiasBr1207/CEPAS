@@ -1,23 +1,38 @@
-// backend/routes/apiRoutes.js
 const express = require('express');
-// Importa as novas funções e as existentes
-const { fetchTableData, checkDbConnection, insertRecord, updateRecord, deleteRecord } = require('../oracle');
+// Importa as funções de serviço e CRUD do módulo Oracle
+const { 
+    fetchTableData, 
+    checkDbConnection, 
+    insertRecord, 
+    updateRecord, 
+    deleteRecord 
+} = require('../oracle');
 const router = express.Router();
 
-router.use(express.json()); // Garante que as rotas aceitem body em JSON
+// Middleware para garantir que o corpo da requisição seja lido como JSON
+router.use(express.json()); 
+
+// Lista de tabelas permitidas para evitar que o usuário acesse tabelas do sistema
+const allowedTables = ['Monitor', 'Area', 'Familia', 'Entrevista', 'Membro']; 
 
 // ------------------------------------
 // ROTAS DE SERVIÇO (Ping e Status)
 // ------------------------------------
 
-// Rota /ping para teste de conexão com o banco
+/**
+ * Rota /ping para teste de conexão com o banco Oracle.
+ */
 router.get('/ping', async (req, res) => {
-    // ... (código existente)
-    const isDbOk = await checkDbConnection();
-    if (isDbOk) {
-        res.status(200).send('✅ Conexão com o banco Oracle está OK!');
-    } else {
-        res.status(500).send('❌ Falha na conexão com o banco Oracle.');
+    console.log('Recebida requisição /ping...');
+    try {
+        const isDbOk = await checkDbConnection();
+        if (isDbOk) {
+            res.status(200).send('✅ Conexão com o banco Oracle está OK!');
+        } else {
+            res.status(500).send('❌ Falha na conexão com o banco Oracle.');
+        }
+    } catch (err) {
+        res.status(500).send(`❌ Erro interno ao checar a conexão: ${err.message}`);
     }
 });
 
@@ -25,10 +40,13 @@ router.get('/ping', async (req, res) => {
 // ROTAS DE AUTENTICAÇÃO (MOCK)
 // ------------------------------------
 
+/**
+ * Rota /login mock para demonstração. Deve ser substituída por uma lógica real.
+ */
 router.post('/login', async (req, res) => {
     const { username, password } = req.body;
 
-    // TODO: Implementar a checagem no Oracle (e.g., tabela de usuários)
+    // TODO: Implementar a checagem real no Oracle (e.g., tabela de usuários)
     if (username === 'admin' && password === 'cepas2025') { 
         // Em um projeto real, você retornaria um JWT token
         const token = 'CEPAS-TOKEN-ADMIN-XYZ';
@@ -44,44 +62,39 @@ router.post('/login', async (req, res) => {
 });
 
 // ------------------------------------
-// ROTAS CRUD GENÉRICAS (Família, Monitor, Área)
+// ROTAS CRUD GENÉRICAS
 // ------------------------------------
-
-// Lista de tabelas permitidas para evitar que o usuário tente acessar tabelas do sistema
-const allowedTables = ['Monitor', 'Area', 'Familia', 'Entrevista', 'Membro']; 
 
 /**
  * Endpoint: /api/dados/:tableName (GET - Leitura de todos ou um)
+ * Query param: ?id=X para buscar um registro específico.
  */
 router.get('/dados/:tableName', async (req, res) => {
     const { tableName } = req.params;
-    const id = req.query.id; // Permite buscar um registro específico: /api/dados/Familia?id=1
+    const id = req.query.id; // Permite buscar um registro específico
 
     if (!allowedTables.includes(tableName)) {
         return res.status(400).send('Acesso negado ou tabela não encontrada.');
     }
 
     try {
-        let sqlTableName = id ? tableName : `"${tableName}"`;
-        let data;
-        
+        let data = await fetchTableData(tableName);
+
         if (id) {
-             // Se houver ID, busca apenas um (reutiliza fetchTableData, mas com WHERE clause)
-             // Nota: fetchTableData precisaria ser adaptada para aceitar um WHERE
-             // Por simplicidade, vamos usar a função existente (que busca todos) para o GET geral
-             // Para um item:
-             // data = await fetchRecordById(tableName, id); 
-             // Como não temos fetchRecordById:
-             data = await fetchTableData(tableName); // Retorna todos por enquanto
-             data = data.find(item => item[`id_${tableName.toLowerCase()}`] == id);
-             if (!data) return res.status(404).send(`${tableName} ID ${id} não encontrado.`);
-        } else {
-            // Busca todos
-            data = await fetchTableData(tableName);
-        }
+            // Filtra os dados no lado da API se um ID for fornecido.
+            // Nota: Em produção, o fetchTableData deveria ser adaptado para buscar pelo ID no SQL.
+            const idColumnName = `ID_${tableName.toUpperCase()}`;
+            const record = data.find(item => item[idColumnName] == id);
+
+            if (!record) {
+                 return res.status(404).send(`${tableName} ID ${id} não encontrado.`);
+            }
+            data = record;
+        } 
         
         res.status(200).json(data);
     } catch (err) {
+        // O erro já vem do oracle.js com uma mensagem detalhada da falha de consulta
         res.status(500).send(`Erro ao buscar dados da tabela ${tableName}: ${err.message}`);
     }
 });
@@ -100,14 +113,15 @@ router.post('/dados/:tableName', async (req, res) => {
         return res.status(400).send('Corpo da requisição vazio.');
     }
 
-    // Adiciona o responsável e data de atualização para as tabelas que possuem essas colunas
+    // Adiciona campos de auditoria
+    // Assume que a tabela possui a coluna USUARIO_RESPONSAVEL
     newRecord.usuario_responsavel = req.headers['x-user'] || 'sistema_api'; 
     
     try {
         const newId = await insertRecord(tableName, newRecord); 
         res.status(201).json({ 
             message: `Registro criado com sucesso na tabela ${tableName}.`, 
-            id: newId,
+            ID: newId,
             data_enviada: newRecord
         });
     } catch (err) {
@@ -129,7 +143,7 @@ router.put('/dados/:tableName/:id', async (req, res) => {
         return res.status(400).send('Corpo da requisição vazio.');
     }
 
-    // Adiciona o responsável para as tabelas que possuem essa coluna
+    // Adiciona campos de auditoria
     updates.usuario_responsavel = req.headers['x-user'] || 'sistema_api'; 
 
     try {
@@ -148,8 +162,6 @@ router.put('/dados/:tableName/:id', async (req, res) => {
         res.status(500).send(`Erro ao atualizar registro ID ${id}: ${err.message}`);
     }
 });
-
-module.exports = router;
 
 /**
  * Endpoint: /api/dados/:tableName/:id (DELETE - Exclusão)
@@ -190,5 +202,6 @@ router.delete('/dados/:tableName/:id', async (req, res) => {
         res.status(500).send(`Erro ao excluir registro ID ${id}: ${err.message}`);
     }
 });
+
 
 module.exports = router;
