@@ -15,25 +15,34 @@ const TABLE_NAME = 'Familia';
 // -------------------------------------------------------------------
 
 /**
- * Envia um novo registro de família para o backend.
- * @param {Object} familiaData - Os dados da família a serem criados.
+ * Envia um novo registro de família completo para o backend.
+ * Inclui família, endereço, animal, estrutura e saneamento.
+ * @param {Object} familiaData - Os dados completos da família a serem criados.
  * @returns {Object} O objeto de resposta do backend (com o novo ID, por exemplo).
  */
 export async function createFamilia(familiaData) {
-    const url = `${API_BASE_URL}/dados/${TABLE_NAME}`; 
+    const url = `${API_BASE_URL}/familia-completa`; // Nova rota específica
 
     try {
         const response = await fetch(url, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'x-user': 'usuario_sistema' // Header para auditoria
             },
             body: JSON.stringify(familiaData),
         });
 
         if (!response.ok) {
-            const errorBody = await response.json();
-            throw new Error(`Erro ${response.status}: ${errorBody.error || 'Falha ao cadastrar a família.'}`);
+            let errorMessage = 'Falha ao cadastrar a família.';
+            try {
+                const errorBody = await response.json();
+                errorMessage = errorBody.message || errorBody.error || errorMessage;
+            } catch (e) {
+                // Se não conseguir fazer parse do JSON, usa o texto da resposta
+                errorMessage = await response.text() || errorMessage;
+            }
+            throw new Error(`Erro ${response.status}: ${errorMessage}`);
         }
 
         return response.json();

@@ -2,6 +2,10 @@ import React, { useState, useEffect } from 'react';
 // Importa ícones necessários para o componente Consulta e Cadastro
 import { Search, Loader, Zap, AlertTriangle, CheckCircle, Save } from 'lucide-react';
 
+// Importa os novos componentes
+import CadastroFamilia from './pages/CadastroFamilia';
+import TesteCadastro from './components/TesteCadastro';
+
 // URL base do seu backend (o servidor Express rodará na porta 3001)
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:3001/api'; 
 
@@ -199,10 +203,10 @@ const ConsultaGeral = ({ setPage }) => {
 };
 
 /**
- * Componente funcional para o Cadastro de Família (Criação/POST de Dados).
- * Envia um novo registro para a tabela FAMILIA.
+ * Componente funcional para o Cadastro de Família (ANTIGO - mantido para compatibilidade).
+ * O novo cadastro completo está em CadastroFamilia.js
  */
-const CadastroFamilia = ({ setPage }) => {
+const CadastroFamiliaAntigo = ({ setPage }) => {
     // Estado para os dados do formulário
     const [formData, setFormData] = useState({
         NOME_CHEFE: '',
@@ -437,7 +441,19 @@ const Home = ({ setPage, pingStatus }) => {
                         onClick={() => setPage('cadastro')} 
                         className="w-full bg-green-600 text-white px-6 py-3 rounded-lg font-bold shadow-md transition-all duration-300 hover:bg-green-700 transform hover:scale-[1.02]"
                     >
-                        Ir para Cadastro de Família
+                        Cadastro Completo de Família
+                    </button>
+                    <button 
+                        onClick={() => setPage('cadastro-antigo')} 
+                        className="w-full bg-yellow-600 text-white px-6 py-3 rounded-lg font-bold shadow-md transition-all duration-300 hover:bg-yellow-700 transform hover:scale-[1.02]"
+                    >
+                        Cadastro Antigo (Simples)
+                    </button>
+                    <button 
+                        onClick={() => setPage('teste')} 
+                        className="w-full bg-purple-600 text-white px-6 py-3 rounded-lg font-bold shadow-md transition-all duration-300 hover:bg-purple-700 transform hover:scale-[1.02]"
+                    >
+                        🧪 Testes do Sistema
                     </button>
                 </div>
             </div>
@@ -454,7 +470,9 @@ const Nav = ({ currentPage, setPage }) => {
     const navItems = [
         { name: 'Home', page: 'home' },
         { name: 'Consulta Geral', page: 'consulta' },
-        { name: 'Cadastro Família', page: 'cadastro' },
+        { name: 'Cadastro Completo', page: 'cadastro' },
+        { name: 'Cadastro Antigo', page: 'cadastro-antigo' },
+        { name: '🧪 Testes', page: 'teste' },
     ];
 
     return (
@@ -519,7 +537,33 @@ const App = () => {
                 // A ConsultaGeral agora usa o código do seu Consulta.js
                 return <ConsultaGeral setPage={setCurrentPage} />;
             case 'cadastro':
-                return <CadastroFamilia setPage={setCurrentPage} />;
+                // Novo cadastro completo
+                return <CadastroFamilia />;
+            case 'cadastro-antigo':
+                // Cadastro antigo mantido para compatibilidade
+                return <CadastroFamiliaAntigo setPage={setCurrentPage} />;
+            case 'teste':
+                // Componente de testes
+                return (
+                    <div>
+                        <TesteCadastro />
+                        <button 
+                            onClick={() => setCurrentPage('home')}
+                            style={{
+                                margin: '20px auto',
+                                display: 'block',
+                                padding: '10px 20px',
+                                backgroundColor: '#6c757d',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            Voltar para Home
+                        </button>
+                    </div>
+                );
             default:
                 return (
                     <div className="p-8 text-center min-h-[calc(100vh-80px)] flex items-center justify-center">

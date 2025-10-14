@@ -13,7 +13,7 @@ const router = express.Router();
 router.use(express.json()); 
 
 // Lista de tabelas permitidas para evitar que o usuário acesse tabelas do sistema
-const allowedTables = ['Monitor', 'Area', 'Familia', 'Entrevista', 'Membro']; 
+const allowedTables = ['Monitor', 'Area', 'Familia', 'Entrevista', 'Membro', 'Endereco', 'Animal', 'EstruturaHabitacao', 'RecursoSaneamento', 'EntrevistaMonitor', 'SaudeMembro', 'CriancaCepas']; 
 
 // ------------------------------------
 // ROTAS DE SERVIÇO (Ping e Status)
@@ -64,6 +64,116 @@ router.post('/login', async (req, res) => {
 // ------------------------------------
 // ROTAS CRUD GENÉRICAS
 // ------------------------------------
+
+/**
+ * Rota especial para criação completa de família com todas as tabelas relacionadas
+ * Endpoint: /api/familia-completa (POST)
+ */
+router.post('/familia-completa', async (req, res) => {
+    const dadosCompletos = req.body;
+    const usuario = req.headers['x-user'] || 'sistema_api';
+    
+    try {
+        // Validações básicas
+        if (!dadosCompletos.nome_familia) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Nome da família é obrigatório.' 
+            });
+        }
+
+        // 1. Inserir a família primeiro
+        const dadosFamilia = {
+            nome_familia: dadosCompletos.nome_familia,
+            migracao: dadosCompletos.migracao || null,
+            estado_origem: dadosCompletos.estado_origem || null,
+            cidade_origem: dadosCompletos.cidade_origem || null,
+            recebe_beneficio: dadosCompletos.recebe_beneficio || 0,
+            possui_plano_saude: dadosCompletos.possui_plano_saude || 0,
+            convenio: dadosCompletos.convenio || null,
+            observacoes: dadosCompletos.observacoes || null,
+            usuario_responsavel: usuario
+        };
+
+        const idFamilia = await insertRecord('Familia', dadosFamilia);
+
+        // 2. Inserir endereço (se fornecido)
+        if (dadosCompletos.endereco && Object.keys(dadosCompletos.endereco).some(key => dadosCompletos.endereco[key])) {
+            const dadosEndereco = {
+                id_familia: idFamilia,
+                id_area: dadosCompletos.endereco.id_area || null,
+                quadra: dadosCompletos.endereco.quadra || null,
+                rua: dadosCompletos.endereco.rua || null,
+                numero_casa: dadosCompletos.endereco.numero_casa || null,
+                complemento: dadosCompletos.endereco.complemento || null
+            };
+            await insertRecord('Endereco', dadosEndereco);
+        }
+
+        // 3. Inserir dados de animais (sempre inserir pois tem_animal é obrigatório)
+        const dadosAnimal = {
+            id_familia: idFamilia,
+            tem_animal: dadosCompletos.animal?.tem_animal || 0,
+            qtd_animais: dadosCompletos.animal?.qtd_animais || null,
+            qual_animal: dadosCompletos.animal?.qual_animal || null
+        };
+        await insertRecord('Animal', dadosAnimal);
+
+        // 4. Inserir estrutura da habitação (se fornecida)
+        if (dadosCompletos.estrutura && Object.keys(dadosCompletos.estrutura).some(key => dadosCompletos.estrutura[key] !== '' && dadosCompletos.estrutura[key] !== null)) {
+            const dadosEstrutura = {
+                id_familia: idFamilia,
+                tipo_habitacao: dadosCompletos.estrutura.tipo_habitacao || null,
+                tipo_lote: dadosCompletos.estrutura.tipo_lote || null,
+                situacao_convivencia: dadosCompletos.estrutura.situacao_convivencia || null,
+                energia_eletrica: dadosCompletos.estrutura.energia_eletrica || 0,
+                material_parede: dadosCompletos.estrutura.material_parede || null,
+                material_piso: dadosCompletos.estrutura.material_piso || null,
+                material_cobertura: dadosCompletos.estrutura.material_cobertura || null,
+                qtd_quartos: dadosCompletos.estrutura.qtd_quartos || null,
+                qtd_camas: dadosCompletos.estrutura.qtd_camas || null,
+                tipo_camas: dadosCompletos.estrutura.tipo_camas || null
+            };
+            await insertRecord('EstruturaHabitacao', dadosEstrutura);
+        }
+
+        // 5. Inserir dados de saneamento (se fornecidos)
+        if (dadosCompletos.saneamento && Object.keys(dadosCompletos.saneamento).some(key => dadosCompletos.saneamento[key] !== '' && dadosCompletos.saneamento[key] !== null)) {
+            const dadosSaneamento = {
+                id_familia: idFamilia,
+                horta: dadosCompletos.saneamento.horta || 0,
+                arvore_frutifera: dadosCompletos.saneamento.arvore_frutifera || 0,
+                como_escoa: dadosCompletos.saneamento.como_escoa || null,
+                tem_banheiro: dadosCompletos.saneamento.tem_banheiro || 0,
+                dest_lixo: dadosCompletos.saneamento.dest_lixo || null,
+                bebe_agua: dadosCompletos.saneamento.bebe_agua || null,
+                trata_agua: dadosCompletos.saneamento.trata_agua || null
+            };
+            await insertRecord('RecursoSaneamento', dadosSaneamento);
+        }
+
+        res.status(201).json({
+            success: true,
+            message: 'Família cadastrada com sucesso com todos os dados relacionados!',
+            id_familia: idFamilia,
+            dados_processados: {
+                familia: true,
+                endereco: !!dadosCompletos.endereco,
+                animal: true,
+                estrutura: !!dadosCompletos.estrutura,
+                saneamento: !!dadosCompletos.saneamento
+            }
+        });
+
+    } catch (error) {
+        console.error('Erro ao criar família completa:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erro interno ao cadastrar a família completa.',
+            error: error.message
+        });
+    }
+});
 
 /**
  * Endpoint: /api/dados/:tableName (GET - Leitura de todos ou um)
