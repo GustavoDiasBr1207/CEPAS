@@ -1,0 +1,38 @@
+
+# -- Stage 1: Build da aplicação React --
+# Use uma imagem Node.js para compilar e gerar os arquivos estáticos.
+FROM node:18-alpine AS builder
+
+# Defina o diretório de trabalho dentro do contêiner.
+WORKDIR /app
+
+# Copie os arquivos de dependência do frontend (package.json e package-lock.json)
+# O `npm install` é executado separadamente para aproveitar o cache do Docker.
+COPY package*.json ./
+
+# Instale as dependências do Node.js
+RUN npm install
+
+# Copie o código-fonte da aplicação
+COPY public/ ./public/
+COPY src/ ./src/
+
+# Execute o build do projeto React.
+# Isso vai criar a pasta `build` com os arquivos estáticos otimizados.
+RUN npm run build
+
+# --- Stage 2: Servir a aplicação com Nginx ---
+# Use uma imagem Nginx para servir os arquivos estáticos gerados na etapa anterior.
+# O Nginx é muito mais leve e seguro para servir conteúdo estático em produção.
+FROM nginx:alpine
+
+# Copie os arquivos de build do React (da etapa "builder") para o diretório
+# padrão do Nginx, onde ele vai servi-los.
+COPY --from=builder /app/build /usr/share/nginx/html
+
+# Exponha a porta 80, que é a porta padrão do Nginx.
+# A aplicação estará acessível através dessa porta.
+EXPOSE 80
+
+# O Nginx já possui um comando padrão (CMD) para iniciar o servidor.
+# Não precisamos definir um CMD aqui.
