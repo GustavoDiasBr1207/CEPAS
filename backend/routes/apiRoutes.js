@@ -5,7 +5,10 @@ const {
     checkDbConnection, 
     insertRecord, 
     updateRecord, 
-    deleteRecord 
+    deleteRecord,
+    beginTransaction,
+    commit,
+    rollback
 } = require('../oracle');
 const router = express.Router();
 
@@ -72,17 +75,18 @@ router.post('/login', async (req, res) => {
 router.post('/familia-completa', async (req, res) => {
     const dadosCompletos = req.body;
     const usuario = req.headers['x-user'] || 'sistema_api';
-    
-    try {
-        // Validações básicas
-        if (!dadosCompletos.nome_familia) {
-            return res.status(400).json({ 
-                success: false, 
-                message: 'Nome da família é obrigatório.' 
-            });
-        }
 
-        // 1. Inserir a família primeiro
+    // Validação mínima
+    if (!dadosCompletos || !dadosCompletos.nome_familia) {
+        return res.status(400).json({ success: false, message: 'Nome da família é obrigatório.' });
+    }
+
+    let connection;
+    try {
+    // Inicia transação
+    connection = await beginTransaction();
+
+        // 1. Inserir família (usa a mesma connection)
         const dadosFamilia = {
             nome_familia: dadosCompletos.nome_familia,
             migracao: dadosCompletos.migracao || null,
@@ -92,10 +96,12 @@ router.post('/familia-completa', async (req, res) => {
             possui_plano_saude: dadosCompletos.possui_plano_saude || 0,
             convenio: dadosCompletos.convenio || null,
             observacoes: dadosCompletos.observacoes || null,
-            usuario_responsavel: usuario
+            usuario_responsavel: usuario,
+            __connection: connection
         };
 
-        const idFamilia = await insertRecord('Familia', dadosFamilia);
+        const insertFamResult = await insertRecord('Familia', dadosFamilia);
+        const idFamilia = insertFamResult.id;
 
         // 2. Inserir endereço (se fornecido)
         if (dadosCompletos.endereco && Object.keys(dadosCompletos.endereco).some(key => dadosCompletos.endereco[key])) {
@@ -105,7 +111,8 @@ router.post('/familia-completa', async (req, res) => {
                 quadra: dadosCompletos.endereco.quadra || null,
                 rua: dadosCompletos.endereco.rua || null,
                 numero_casa: dadosCompletos.endereco.numero_casa || null,
-                complemento: dadosCompletos.endereco.complemento || null
+                complemento: dadosCompletos.endereco.complemento || null,
+                __connection: connection
             };
             await insertRecord('Endereco', dadosEndereco);
         }
@@ -115,7 +122,8 @@ router.post('/familia-completa', async (req, res) => {
             id_familia: idFamilia,
             tem_animal: dadosCompletos.animal?.tem_animal || 0,
             qtd_animais: dadosCompletos.animal?.qtd_animais || null,
-            qual_animal: dadosCompletos.animal?.qual_animal || null
+            qual_animal: dadosCompletos.animal?.qual_animal || null,
+            __connection: connection
         };
         await insertRecord('Animal', dadosAnimal);
 
@@ -132,7 +140,8 @@ router.post('/familia-completa', async (req, res) => {
                 material_cobertura: dadosCompletos.estrutura.material_cobertura || null,
                 qtd_quartos: dadosCompletos.estrutura.qtd_quartos || null,
                 qtd_camas: dadosCompletos.estrutura.qtd_camas || null,
-                tipo_camas: dadosCompletos.estrutura.tipo_camas || null
+                tipo_camas: dadosCompletos.estrutura.tipo_camas || null,
+                __connection: connection
             };
             await insertRecord('EstruturaHabitacao', dadosEstrutura);
         }
@@ -147,10 +156,14 @@ router.post('/familia-completa', async (req, res) => {
                 tem_banheiro: dadosCompletos.saneamento.tem_banheiro || 0,
                 dest_lixo: dadosCompletos.saneamento.dest_lixo || null,
                 bebe_agua: dadosCompletos.saneamento.bebe_agua || null,
-                trata_agua: dadosCompletos.saneamento.trata_agua || null
+                trata_agua: dadosCompletos.saneamento.trata_agua || null,
+                __connection: connection
             };
             await insertRecord('RecursoSaneamento', dadosSaneamento);
         }
+
+    // Commit se tudo ocorreu bem
+    await commit(connection);
 
         res.status(201).json({
             success: true,
@@ -166,12 +179,23 @@ router.post('/familia-completa', async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Erro ao criar família completa:', error);
+        console.error('Erro ao criar família completa (transação):', error);
+        // Tentar rollback se a conexão existir
+        try {
+            if (connection) await rollback(connection);
+        } catch (rbErr) {
+            console.error('Erro durante rollback:', rbErr);
+        }
+
         res.status(500).json({
             success: false,
             message: 'Erro interno ao cadastrar a família completa.',
             error: error.message
         });
+    } finally {
+        if (connection) {
+            try { await connection.close(); } catch (e) { console.error('Erro fechando conexão final:', e); }
+        }
     }
 });
 

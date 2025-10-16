@@ -1,5 +1,6 @@
 // src/pages/CadastroFamilia.js
 import React, { useState } from 'react';
+import { Save } from 'lucide-react';
 import Formulario from '../components/Formulario';
 import * as cepasService from '../services/cepasService';
 
@@ -21,9 +22,6 @@ const CadastroFamilia = () => {
                 type: 'success'
             });
             
-            // Opcional: Limpar o formulário após sucesso
-            // window.location.reload(); // ou implementar reset do formulário
-            
         } catch (error) {
             console.error('Erro ao cadastrar família:', error);
             setMessage({
@@ -36,90 +34,31 @@ const CadastroFamilia = () => {
     };
 
     return (
-        <div className="cadastro-familia-page">
-            <div className="page-header">
-                <h1>Nova Família - Cadastro Completo</h1>
-                <p>Preencha todos os dados da família para um cadastro completo no sistema CEPAS</p>
+        <div className="p-4 sm:p-8 min-h-screen bg-gradient-to-br from-gray-50 to-green-100 flex flex-col items-center font-sans">
+            <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-3xl w-full max-w-5xl transition-all duration-300">
+                <h1 className="text-4xl font-black mb-6 text-center text-green-800 flex items-center justify-center">
+                    <Save className="h-8 w-8 mr-3 text-green-600" />
+                    Cadastro Completo de Família
+                </h1>
+
+                <p className="text-center text-gray-600 mb-6">Preencha todos os dados da família para um cadastro completo no sistema CEPAS</p>
+
+                {message.text && (
+                    <div className={`mb-6 p-4 rounded-md font-medium ${message.type === 'success' ? 'bg-green-100 border border-green-200 text-green-800' : 'bg-red-100 border border-red-200 text-red-800'}`}>
+                        {message.text}
+                    </div>
+                )}
+
+                {loading && (
+                    <div className="mb-6 text-center p-4 bg-blue-50 rounded-md text-blue-700 font-medium">Cadastrando família... Por favor, aguarde.</div>
+                )}
+
+                <Formulario onSave={handleSave} disabled={loading} />
+
+                <div className="mt-6 flex justify-end">
+                    <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="bg-gray-200 text-gray-700 px-4 py-2 rounded-md shadow hover:bg-gray-300">Ir para topo</button>
+                </div>
             </div>
-            
-            {message.text && (
-                <div className={`message ${message.type}`}>
-                    {message.text}
-                </div>
-            )}
-            
-            {loading && (
-                <div className="loading">
-                    <p>Cadastrando família... Por favor, aguarde.</p>
-                </div>
-            )}
-            
-            <Formulario onSave={handleSave} disabled={loading} />
-            
-            <style jsx>{`
-                .cadastro-familia-page {
-                    max-width: 1200px;
-                    margin: 0 auto;
-                    padding: 20px;
-                }
-                
-                .page-header {
-                    text-align: center;
-                    margin-bottom: 30px;
-                }
-                
-                .page-header h1 {
-                    color: #2c5aa0;
-                    margin-bottom: 10px;
-                    font-size: 28px;
-                }
-                
-                .page-header p {
-                    color: #666;
-                    font-size: 16px;
-                    max-width: 600px;
-                    margin: 0 auto;
-                }
-                
-                .message {
-                    padding: 15px;
-                    border-radius: 5px;
-                    margin-bottom: 20px;
-                    font-weight: 500;
-                }
-                
-                .message.success {
-                    background-color: #d4edda;
-                    border: 1px solid #c3e6cb;
-                    color: #155724;
-                }
-                
-                .message.error {
-                    background-color: #f8d7da;
-                    border: 1px solid #f5c6cb;
-                    color: #721c24;
-                }
-                
-                .loading {
-                    text-align: center;
-                    padding: 20px;
-                    background-color: #e3f2fd;
-                    border-radius: 5px;
-                    margin-bottom: 20px;
-                    color: #1565c0;
-                    font-weight: 500;
-                }
-                
-                @media (max-width: 768px) {
-                    .page-header h1 {
-                        font-size: 24px;
-                    }
-                    
-                    .page-header p {
-                        font-size: 14px;
-                    }
-                }
-            `}</style>
         </div>
     );
 };

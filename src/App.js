@@ -5,6 +5,7 @@ import { Search, Loader, Zap, AlertTriangle, CheckCircle, Save } from 'lucide-re
 // Importa os novos componentes
 import CadastroFamilia from './pages/CadastroFamilia';
 import TesteCadastro from './components/TesteCadastro';
+import ConsultaCadastros from './pages/ConsultaCadastros';
 
 // URL base do seu backend (o servidor Express rodará na porta 3001)
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:3001/api'; 
@@ -202,209 +203,10 @@ const ConsultaGeral = ({ setPage }) => {
     );
 };
 
-/**
- * Componente funcional para o Cadastro de Família (ANTIGO - mantido para compatibilidade).
- * O novo cadastro completo está em CadastroFamilia.js
- */
-const CadastroFamiliaAntigo = ({ setPage }) => {
-    // Estado para os dados do formulário
-    const [formData, setFormData] = useState({
-        NOME_CHEFE: '',
-        RENDA_FAMILIAR: '', // Receberá string, será convertido para número
-        ENDERECO: '',
-        ID_AREA: '', // Receberá string, será convertido para número
-    });
-
-    // Estado para o status da operação
-    const [loading, setLoading] = useState(false);
-    const [status, setStatus] = useState(
-        "Preencha os campos abaixo para cadastrar uma nova família."
-    );
-
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
-    };
-
-    // Função auxiliar para renderizar o status
-    const renderStatus = () => {
-        let icon;
-        let colorClass;
-        if (status.startsWith('❌')) {
-            icon = <AlertTriangle className="mr-2" />;
-            colorClass = 'text-red-600';
-        } else if (status.startsWith('✅')) {
-            icon = <CheckCircle className="mr-2" />;
-            colorClass = 'text-green-600';
-        } else if (status.startsWith('⚠️')) {
-            icon = <AlertTriangle className="mr-2" />;
-            colorClass = 'text-yellow-600';
-        } else {
-            icon = <Zap className="mr-2" />;
-            colorClass = 'text-gray-700';
-        }
-
-        return (
-            <p className={`mt-4 font-semibold flex items-center ${colorClass}`}>
-                {icon}
-                {status}
-            </p>
-        );
-    };
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setLoading(true);
-        setStatus("Enviando dados para o backend...");
-
-        const tableName = 'FAMILIA';
-
-        // Converte valores numéricos
-        const payload = {
-            ...formData,
-            RENDA_FAMILIAR: parseFloat(formData.RENDA_FAMILIAR) || null,
-            ID_AREA: parseInt(formData.ID_AREA, 10) || null,
-        };
-
-        try {
-            const url = `${API_BASE_URL}/dados/${tableName}`;
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(payload),
-            });
-
-            if (response.status === 409) {
-                setStatus("⚠️ Erro: Conflito de ID. O ID_FAMILIA já existe no banco de dados.");
-            } else if (!response.ok) {
-                const errorText = await response.text(); 
-                throw new Error(`Erro ${response.status}: ${errorText.substring(0, 100)}...`);
-            } else {
-                // Sucesso (201 Created)
-                const result = await response.json();
-                setStatus(`✅ Família cadastrada com sucesso! ID Gerado/Usado: ${result.ID}`);
-                
-                // Limpa o formulário após o sucesso
-                setFormData({
-                    NOME_CHEFE: '',
-                    RENDA_FAMILIAR: '',
-                    ENDERECO: '',
-                    ID_AREA: '',
-                });
-            }
-
-        } catch (err) {
-            console.error(err);
-            setStatus(`❌ Erro no cadastro! Detalhes: ${err.message}`);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    return (
-        <div className="p-4 sm:p-8 min-h-screen bg-gradient-to-br from-gray-50 to-green-100 flex flex-col items-center font-sans">
-            <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-3xl w-full max-w-lg transition-all duration-300">
-                <h1 className="text-4xl font-black mb-6 text-center text-green-800 flex items-center justify-center">
-                    <Save className="h-8 w-8 mr-3 text-green-600" />
-                    Cadastro de Família
-                </h1>
-                <p className="text-center text-gray-600 mb-6">
-                    Insira as informações da nova família para cadastrar na tabela FAMILIA.
-                </p>
-                
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    
-                    {/* Campo NOME_CHEFE */}
-                    <label className="block">
-                        <span className="text-gray-700 font-medium">Nome do Chefe de Família (NOME_CHEFE)</span>
-                        <input
-                            type="text"
-                            name="NOME_CHEFE"
-                            value={formData.NOME_CHEFE}
-                            onChange={handleChange}
-                            required
-                            className="mt-1 block w-full border-2 border-gray-300 p-3 rounded-lg focus:border-green-500 focus:ring-green-500/50 transition duration-200 shadow-inner"
-                            disabled={loading}
-                        />
-                    </label>
-
-                    {/* Campo RENDA_FAMILIAR */}
-                    <label className="block">
-                        <span className="text-gray-700 font-medium">Renda Familiar (RENDA_FAMILIAR)</span>
-                        <input
-                            type="number"
-                            name="RENDA_FAMILIAR"
-                            value={formData.RENDA_FAMILIAR}
-                            onChange={handleChange}
-                            step="0.01"
-                            placeholder="Ex: 2500.50"
-                            required
-                            className="mt-1 block w-full border-2 border-gray-300 p-3 rounded-lg focus:border-green-500 focus:ring-green-500/50 transition duration-200 shadow-inner"
-                            disabled={loading}
-                        />
-                    </label>
-
-                    {/* Campo ENDERECO */}
-                    <label className="block">
-                        <span className="text-gray-700 font-medium">Endereço (ENDERECO)</span>
-                        <input
-                            type="text"
-                            name="ENDERECO"
-                            value={formData.ENDERECO}
-                            onChange={handleChange}
-                            required
-                            className="mt-1 block w-full border-2 border-gray-300 p-3 rounded-lg focus:border-green-500 focus:ring-green-500/50 transition duration-200 shadow-inner"
-                            disabled={loading}
-                        />
-                    </label>
-
-                    {/* Campo ID_AREA */}
-                    <label className="block">
-                        <span className="text-gray-700 font-medium">ID da Área (ID_AREA - Chave Estrangeira)</span>
-                        <input
-                            type="number"
-                            name="ID_AREA"
-                            value={formData.ID_AREA}
-                            onChange={handleChange}
-                            required
-                            className="mt-1 block w-full border-2 border-gray-300 p-3 rounded-lg focus:border-green-500 focus:ring-green-500/50 transition duration-200 shadow-inner"
-                            disabled={loading}
-                        />
-                    </label>
-                    
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className="w-full bg-green-600 text-white font-extrabold px-8 py-3 rounded-xl shadow-lg transition-all duration-300 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center text-lg"
-                    >
-                        {loading ? (
-                            <>
-                                <Loader className="h-5 w-5 mr-2 animate-spin" />
-                                Cadastrando...
-                            </>
-                        ) : (
-                            <>
-                                <Save className="h-5 w-5 mr-2" />
-                                Salvar Família
-                            </>
-                        )}
-                    </button>
-                </form>
-
-                {renderStatus()}
-
-                <button 
-                    onClick={() => setPage('home')} 
-                    className="mt-8 bg-gray-200 text-gray-700 px-6 py-2 rounded-lg shadow hover:bg-gray-300 transition-colors font-medium w-full"
-                >
-                    Voltar para Home
-                </button>
-            </div>
-        </div>
-    );
-};
+/*
+Backup (removed): Componente CadastroFamiliaAntigo — caso precise restaurar, desfazer a remoção.
+const CadastroFamiliaAntigo = ({ setPage }) => { ... }
+*/
 
 /**
  * Componente simples para a página inicial (Home).
@@ -437,18 +239,22 @@ const Home = ({ setPage, pingStatus }) => {
                     >
                         Acessar Consulta Geral
                     </button>
-                    <button 
-                        onClick={() => setPage('cadastro')} 
-                        className="w-full bg-green-600 text-white px-6 py-3 rounded-lg font-bold shadow-md transition-all duration-300 hover:bg-green-700 transform hover:scale-[1.02]"
-                    >
-                        Cadastro Completo de Família
-                    </button>
-                    <button 
-                        onClick={() => setPage('cadastro-antigo')} 
-                        className="w-full bg-yellow-600 text-white px-6 py-3 rounded-lg font-bold shadow-md transition-all duration-300 hover:bg-yellow-700 transform hover:scale-[1.02]"
-                    >
-                        Cadastro Antigo (Simples)
-                    </button>
+                        <div className="flex flex-col sm:flex-row gap-4">
+                            <button 
+                                onClick={() => setPage('consulta-cadastros')}
+                                className="w-full sm:w-1/2 bg-green-600 text-white px-6 py-3 rounded-lg font-bold shadow-md transition-all duration-300 hover:bg-green-700"
+                            >
+                                Consulta Cadastros
+                            </button>
+
+                            <button 
+                                onClick={() => setPage('cadastro')} 
+                                className="w-full sm:w-1/2 bg-green-600 text-white px-6 py-3 rounded-lg font-bold shadow-md transition-all duration-300 hover:bg-green-700"
+                            >
+                                Cadastro Completo de Família
+                            </button>
+                        </div>
+                    {/* Cadastro antigo removido - botão eliminado to prefer new CadastroCompleto */}
                     <button 
                         onClick={() => setPage('teste')} 
                         className="w-full bg-purple-600 text-white px-6 py-3 rounded-lg font-bold shadow-md transition-all duration-300 hover:bg-purple-700 transform hover:scale-[1.02]"
@@ -467,11 +273,11 @@ const Home = ({ setPage, pingStatus }) => {
 // ------------------------------------
 
 const Nav = ({ currentPage, setPage }) => {
-    const navItems = [
+        const navItems = [
         { name: 'Home', page: 'home' },
         { name: 'Consulta Geral', page: 'consulta' },
         { name: 'Cadastro Completo', page: 'cadastro' },
-        { name: 'Cadastro Antigo', page: 'cadastro-antigo' },
+            { name: 'Consulta Cadastros', page: 'consulta-cadastros' },
         { name: '🧪 Testes', page: 'teste' },
     ];
 
@@ -536,12 +342,11 @@ const App = () => {
             case 'consulta':
                 // A ConsultaGeral agora usa o código do seu Consulta.js
                 return <ConsultaGeral setPage={setCurrentPage} />;
+            case 'consulta-cadastros':
+                return <ConsultaCadastros setPage={setCurrentPage} />;
             case 'cadastro':
                 // Novo cadastro completo
                 return <CadastroFamilia />;
-            case 'cadastro-antigo':
-                // Cadastro antigo mantido para compatibilidade
-                return <CadastroFamiliaAntigo setPage={setCurrentPage} />;
             case 'teste':
                 // Componente de testes
                 return (

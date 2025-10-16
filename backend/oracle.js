@@ -69,34 +69,38 @@ async function fetchTableData(tableName) {
  * @returns {number} O ID do novo registro.
  */
 async function insertRecord(tableName, record) {
-    let connection;
+    // Permite passar uma conexão opcional para agrupar múltiplos inserts/updates em uma transação
+    // Se você passar record.__connection, será utilizada (não será feito commit automaticamente)
+    let connection = record && record.__connection ? record.__connection : null;
+    const providedConnection = !!connection;
     try {
-        connection = await oracledb.getConnection(dbConfig);
-        
-    // Constrói a lista de colunas e variáveis de bind (ex: :1, :2), sem aspas
-    const columns = Object.keys(record).map(key => key.toUpperCase()).join(', '); 
-    const bindVars = Object.keys(record).map((key, index) => `:${index + 1}`).join(', ');
-    const values = Object.values(record);
-        
-    // O nome da coluna ID é dinâmico (ex: ID_FAMILIA)
-    const sql = `INSERT INTO ${tableName.toUpperCase()} (${columns}) VALUES (${bindVars}) RETURNING ID_${tableName.toUpperCase()} INTO :outputId`;
+        if (!providedConnection) connection = await oracledb.getConnection(dbConfig);
 
-        // Passa os valores de inserção + a variável de saída para o ID
-        const result = await connection.execute(sql, [...values, { dir: oracledb.BIND_OUT, type: oracledb.NUMBER }], {
-            autoCommit: true,
-            outFormat: oracledb.OUT_FORMAT_OBJECT
-        });
+        // Cria um payload sem a propriedade __connection
+        const payload = { ...record };
+        delete payload.__connection;
 
+        // Constrói a lista de colunas e bind variables
+        const columns = Object.keys(payload).map(key => key.toUpperCase()).join(', ');
+        const bindVars = Object.keys(payload).map((key, index) => `:${index + 1}`).join(', ');
+        const values = Object.values(payload);
+
+        const sql = `INSERT INTO ${tableName.toUpperCase()} (${columns}) VALUES (${bindVars}) RETURNING ID_${tableName.toUpperCase()} INTO :outputId`;
+
+        const binds = [...values, { dir: oracledb.BIND_OUT, type: oracledb.NUMBER }];
+        const execOptions = { autoCommit: providedConnection ? false : true, outFormat: oracledb.OUT_FORMAT_OBJECT };
+
+        const result = await connection.execute(sql, binds, execOptions);
         const newId = result.outBinds.outputId[0];
         console.log(`✅ Registro inserido na tabela ${tableName} com ID: ${newId}`);
-        return newId;
-        
+
+        return { id: newId, connection };
     } catch (err) {
         console.error(`❌ Erro ao inserir registro na tabela ${tableName}:`, err);
         throw err;
     } finally {
-        if (connection) {
-            await connection.close();
+        if (!providedConnection && connection) {
+            try { await connection.close(); } catch (e) { console.error('Erro fechando conexão:', e); }
         }
     }
 }
@@ -109,39 +113,39 @@ async function insertRecord(tableName, record) {
  * @returns {number} O número de linhas afetadas.
  */
 async function updateRecord(tableName, id, updates) {
-    let connection;
+    // Permite passar uma conexão opcional em updates.__connection
+    let connection = updates && updates.__connection ? updates.__connection : null;
+    const providedConnection = !!connection;
     try {
-        connection = await oracledb.getConnection(dbConfig);
+        if (!providedConnection) connection = await oracledb.getConnection(dbConfig);
 
-        // Constrói a cláusula SET usando binds nomeadas (ex: :val1, :val2), sem aspas
-        const updateSetClause = Object.keys(updates).map((key, index) => 
+        const payload = { ...updates };
+        delete payload.__connection;
+
+        const updateSetClause = Object.keys(payload).map((key, index) => 
             `${key.toUpperCase()} = :val${index + 1}`
         ).join(', ');
 
-        const values = Object.values(updates);
+        const values = Object.values(payload);
 
-        // Cria o objeto de binds: { val1: value1, val2: value2, ..., id: id }
         const bindsObject = {};
         values.forEach((val, index) => {
             bindsObject[`val${index + 1}`] = val; 
         });
-        bindsObject.id = id; // O bind :id para o WHERE
+        bindsObject.id = id;
 
-        // Inclui SYSDATE na cláusula SET (assumindo que a coluna UPDATED_AT existe)
         const updateSql = `UPDATE ${tableName.toUpperCase()} SET ${updateSetClause}, UPDATED_AT = SYSDATE WHERE ID_${tableName.toUpperCase()} = :id`;
 
-        // Executa a atualização usando o objeto de binds nomeadas
-        const result = await connection.execute(updateSql, bindsObject, { autoCommit: true });
+        const result = await connection.execute(updateSql, bindsObject, { autoCommit: providedConnection ? false : true });
 
         console.log(`✅ Registro ID ${id} atualizado na tabela ${tableName}. Linhas afetadas: ${result.rowsAffected}`);
         return result.rowsAffected;
-        
     } catch (err) {
         console.error(`❌ Erro ao atualizar registro ID ${id} na tabela ${tableName}:`, err);
         throw err;
     } finally {
-        if (connection) {
-            await connection.close();
+        if (!providedConnection && connection) {
+            try { await connection.close(); } catch (e) { console.error('Erro fechando conexão:', e); }
         }
     }
 }
@@ -154,31 +158,48 @@ async function updateRecord(tableName, id, updates) {
  * @returns {number} O número de linhas afetadas.
  */
 async function deleteRecord(tableName, id) {
-    let connection;
+    // Permite passar id como objeto { value: id, __connection: conn } para usar conexão passada
+    let connection = null;
+    let providedConnection = false;
     try {
-        connection = await oracledb.getConnection(dbConfig);
+        if (id && typeof id === 'object' && id.__connection) {
+            providedConnection = true;
+            connection = id.__connection;
+            id = id.value;
+        }
 
-    const idColumn = `ID_${tableName.toUpperCase()}`; 
-    // Uso de bind variable (:id) para segurança, sem aspas
-    const sql = `DELETE FROM ${tableName.toUpperCase()} WHERE ${idColumn} = :id`;
-    const binds = { id: id };
-        
-        const result = await connection.execute(sql, binds, { autoCommit: true });
+        if (!providedConnection) connection = await oracledb.getConnection(dbConfig);
+
+        const idColumn = `ID_${tableName.toUpperCase()}`;
+        const sql = `DELETE FROM ${tableName.toUpperCase()} WHERE ${idColumn} = :id`;
+        const binds = { id: id };
+
+        const result = await connection.execute(sql, binds, { autoCommit: providedConnection ? false : true });
 
         console.log(`✅ Tentativa de exclusão ID ${id} na tabela ${tableName}. Linhas afetadas: ${result.rowsAffected}`);
-        return result.rowsAffected; 
+        return result.rowsAffected;
     } catch (err) {
         console.error(`❌ Erro ao excluir registro ID ${id} da tabela ${tableName}:`, err);
         throw err;
     } finally {
-        if (connection) {
-            try {
-                await connection.close();
-            } catch (err) {
-                console.error("Erro ao fechar a conexão no deleteRecord:", err);
-            }
+        if (!providedConnection && connection) {
+            try { await connection.close(); } catch (e) { console.error('Erro fechando conexão:', e); }
         }
     }
+}
+
+// Helpers para transação
+async function beginTransaction() {
+    const connection = await oracledb.getConnection(dbConfig);
+    return connection;
+}
+
+async function commit(connection) {
+    if (connection) await connection.commit();
+}
+
+async function rollback(connection) {
+    if (connection) await connection.rollback();
 }
 
 
@@ -191,5 +212,9 @@ module.exports = {
     fetchTableData,
     insertRecord,
     updateRecord,
-    deleteRecord 
+    deleteRecord,
+    beginTransaction,
+    commit,
+    rollback
 };
+

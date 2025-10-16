@@ -145,8 +145,8 @@ function Formulario({ onSave, disabled = false }) {
     };
 
     return (
-        <div className="formulario-container">
-            <h2>Cadastro Completo de Família</h2>
+        <div className="card formulario-container">
+            <h2 className="card-header">Cadastro Completo de Família</h2>
             
             {/* Exibir erros de validação */}
             {validationErrors.length > 0 && (
@@ -175,6 +175,7 @@ function Formulario({ onSave, disabled = false }) {
                             required
                             maxLength="150"
                             disabled={disabled || isSubmitting}
+                            className="form-input"
                         />
                     </div>
 
@@ -189,6 +190,7 @@ function Formulario({ onSave, disabled = false }) {
                                 onChange={handleChange}
                                 maxLength="50"
                                 placeholder="Ex: Rural para urbana"
+                                className="form-input"
                             />
                         </div>
                         
@@ -201,6 +203,7 @@ function Formulario({ onSave, disabled = false }) {
                                 value={formData.estado_origem}
                                 onChange={handleChange}
                                 maxLength="80"
+                                className="form-input"
                             />
                         </div>
                         
@@ -259,13 +262,14 @@ function Formulario({ onSave, disabled = false }) {
 
                     <div className="form-group">
                         <label htmlFor="observacoes">Observações:</label>
-                        <textarea
+                            <textarea
                             id="observacoes"
                             name="observacoes"
                             value={formData.observacoes}
                             onChange={handleChange}
                             rows="3"
                             placeholder="Observações gerais sobre a família..."
+                            className="form-input"
                         />
                     </div>
                 </fieldset>
@@ -282,6 +286,7 @@ function Formulario({ onSave, disabled = false }) {
                                 name="endereco.id_area"
                                 value={formData.endereco.id_area}
                                 onChange={handleChange}
+                                className="form-input"
                             >
                                 <option value="">Selecione uma área</option>
                                 {areas.map(area => (
@@ -301,6 +306,7 @@ function Formulario({ onSave, disabled = false }) {
                                 value={formData.endereco.quadra}
                                 onChange={handleChange}
                                 maxLength="30"
+                                className="form-input"
                             />
                         </div>
                     </div>
@@ -315,6 +321,7 @@ function Formulario({ onSave, disabled = false }) {
                                 value={formData.endereco.rua}
                                 onChange={handleChange}
                                 maxLength="100"
+                                className="form-input"
                             />
                         </div>
                         
@@ -327,21 +334,23 @@ function Formulario({ onSave, disabled = false }) {
                                 value={formData.endereco.numero_casa}
                                 onChange={handleChange}
                                 maxLength="20"
+                                className="form-input"
                             />
                         </div>
                     </div>
 
                     <div className="form-group">
                         <label htmlFor="endereco.complemento">Complemento:</label>
-                        <input
-                            type="text"
-                            id="endereco.complemento"
-                            name="endereco.complemento"
-                            value={formData.endereco.complemento}
-                            onChange={handleChange}
-                            maxLength="150"
-                            placeholder="Ex: Próximo ao mercado, ao lado da escola..."
-                        />
+                            <input
+                                type="text"
+                                id="endereco.complemento"
+                                name="endereco.complemento"
+                                value={formData.endereco.complemento}
+                                onChange={handleChange}
+                                maxLength="150"
+                                placeholder="Ex: Próximo ao mercado, ao lado da escola..."
+                                className="form-input"
+                            />
                     </div>
                 </fieldset>
 
@@ -372,6 +381,7 @@ function Formulario({ onSave, disabled = false }) {
                                     value={formData.animal.qtd_animais}
                                     onChange={handleChange}
                                     min="1"
+                                    className="form-input"
                                 />
                             </div>
                             
@@ -385,6 +395,7 @@ function Formulario({ onSave, disabled = false }) {
                                     onChange={handleChange}
                                     maxLength="30"
                                     placeholder="Ex: Cães, Gatos, Galinhas..."
+                                    className="form-input"
                                 />
                             </div>
                         </div>
@@ -403,6 +414,7 @@ function Formulario({ onSave, disabled = false }) {
                                 name="estrutura.tipo_habitacao"
                                 value={formData.estrutura.tipo_habitacao}
                                 onChange={handleChange}
+                                className="form-input"
                             >
                                 <option value="">Selecione</option>
                                 <option value="Casa">Casa</option>
@@ -419,6 +431,7 @@ function Formulario({ onSave, disabled = false }) {
                                 name="estrutura.tipo_lote"
                                 value={formData.estrutura.tipo_lote}
                                 onChange={handleChange}
+                                className="form-input"
                             >
                                 <option value="">Selecione</option>
                                 <option value="Próprio">Próprio</option>
@@ -435,6 +448,7 @@ function Formulario({ onSave, disabled = false }) {
                                 name="estrutura.situacao_convivencia"
                                 value={formData.estrutura.situacao_convivencia}
                                 onChange={handleChange}
+                                className="form-input"
                             >
                                 <option value="">Selecione</option>
                                 <option value="Somente a família">Somente a família</option>
@@ -444,7 +458,7 @@ function Formulario({ onSave, disabled = false }) {
                         </div>
                     </div>
 
-                    <div className="form-group checkbox-group">
+                            <div className="form-group checkbox-group">
                         <label>
                             <input
                                 type="checkbox"
@@ -464,6 +478,7 @@ function Formulario({ onSave, disabled = false }) {
                                 name="estrutura.material_parede"
                                 value={formData.estrutura.material_parede}
                                 onChange={handleChange}
+                                className="form-input"
                             >
                                 <option value="">Selecione</option>
                                 <option value="Tijolo">Tijolo</option>
@@ -481,6 +496,7 @@ function Formulario({ onSave, disabled = false }) {
                                 name="estrutura.material_piso"
                                 value={formData.estrutura.material_piso}
                                 onChange={handleChange}
+                                className="form-input"
                             >
                                 <option value="">Selecione</option>
                                 <option value="Cimento">Cimento</option>
@@ -498,6 +514,7 @@ function Formulario({ onSave, disabled = false }) {
                                 name="estrutura.material_cobertura"
                                 value={formData.estrutura.material_cobertura}
                                 onChange={handleChange}
+                                className="form-input"
                             >
                                 <option value="">Selecione</option>
                                 <option value="Telha">Telha</option>
@@ -519,6 +536,7 @@ function Formulario({ onSave, disabled = false }) {
                                 value={formData.estrutura.qtd_quartos}
                                 onChange={handleChange}
                                 min="0"
+                                className="form-input"
                             />
                         </div>
                         
@@ -531,6 +549,7 @@ function Formulario({ onSave, disabled = false }) {
                                 value={formData.estrutura.qtd_camas}
                                 onChange={handleChange}
                                 min="0"
+                                className="form-input"
                             />
                         </div>
                         
@@ -544,6 +563,7 @@ function Formulario({ onSave, disabled = false }) {
                                 onChange={handleChange}
                                 maxLength="100"
                                 placeholder="Ex: Beliche, Solteiro, Casal..."
+                                className="form-input"
                             />
                         </div>
                     </div>
@@ -599,6 +619,7 @@ function Formulario({ onSave, disabled = false }) {
                                 name="saneamento.como_escoa"
                                 value={formData.saneamento.como_escoa}
                                 onChange={handleChange}
+                                className="form-input"
                             >
                                 <option value="">Selecione</option>
                                 <option value="Rede de esgoto">Rede de esgoto</option>
@@ -615,6 +636,7 @@ function Formulario({ onSave, disabled = false }) {
                                 name="saneamento.dest_lixo"
                                 value={formData.saneamento.dest_lixo}
                                 onChange={handleChange}
+                                className="form-input"
                             >
                                 <option value="">Selecione</option>
                                 <option value="Coleta pública">Coleta pública</option>
@@ -633,6 +655,7 @@ function Formulario({ onSave, disabled = false }) {
                                 name="saneamento.bebe_agua"
                                 value={formData.saneamento.bebe_agua}
                                 onChange={handleChange}
+                                className="form-input"
                             >
                                 <option value="">Selecione</option>
                                 <option value="Filtrada">Filtrada</option>
@@ -649,6 +672,7 @@ function Formulario({ onSave, disabled = false }) {
                                 name="saneamento.trata_agua"
                                 value={formData.saneamento.trata_agua}
                                 onChange={handleChange}
+                                className="form-input"
                             >
                                 <option value="">Selecione</option>
                                 <option value="Fervida">Rede pública</option>
@@ -664,7 +688,7 @@ function Formulario({ onSave, disabled = false }) {
                 <div className="form-actions">
                     <button 
                         type="submit" 
-                        className="btn-submit"
+                        className="primary-btn"
                         disabled={disabled || isSubmitting}
                     >
                         {isSubmitting ? 'Salvando...' : 'Salvar Cadastro Completo'}

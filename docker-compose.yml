@@ -8,6 +8,17 @@ services:
       - "3001:3001"
     environment:
       - TNS_ADMIN=/usr/src/app/wallet
+      - DB_USER=${DB_USER}
+      - DB_PASS=${DB_PASS}
+      - DB_CONN=${DB_CONN}
+      - INSTANT_CLIENT_LIB=/usr/src/app/instant
+      - DB_POOL_MIN=${DB_POOL_MIN:-10}
+      - DB_POOL_MAX=${DB_POOL_MAX:-10}
+      - DB_POOL_INCREMENT=${DB_POOL_INCREMENT:-0}
+      - DB_POOL_TIMEOUT=${DB_POOL_TIMEOUT:-60}
+    # Montar a wallet via volume é recomendado para não versionar arquivos sensíveis
+    volumes:
+      - ./backend/wallet:/usr/src/app/wallet:ro
     restart: always
     networks:
       - cepas-network
