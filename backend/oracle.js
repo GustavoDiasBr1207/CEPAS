@@ -78,16 +78,46 @@ async function insertRecord(tableName, record) {
     const bindVars = Object.keys(record).map((key, index) => `:${index + 1}`).join(', ');
     const values = Object.values(record);
         
-    // O nome da coluna ID é dinâmico (ex: ID_FAMILIA)
-    const sql = `INSERT INTO ${tableName.toUpperCase()} (${columns}) VALUES (${bindVars}) RETURNING ID_${tableName.toUpperCase()} INTO :outputId`;
+    // Mapeamento dos nomes corretos das colunas ID para cada tabela
+    const idColumnMap = {
+        'FAMILIA': 'ID_FAMILIA',
+        'ENDERECO': 'ID_ENDERECO', 
+        'ANIMAL': 'ID_ANIMAL',
+        'ESTRUTURAHABITACAO': 'ID_ESTRUTURA',
+        'RECURSOSANEAMENTO': 'ID_RECURSO'
+    };
+    
+    const tableNameUpper = tableName.toUpperCase();
+    const idColumn = idColumnMap[tableNameUpper] || `ID_${tableNameUpper}`;
+    
+    // O nome da coluna ID é específico para cada tabela
+    const sql = `INSERT INTO ${tableNameUpper} (${columns}) VALUES (${bindVars}) RETURNING ${idColumn} INTO :outputId`;
 
-        // Passa os valores de inserção + a variável de saída para o ID
-        const result = await connection.execute(sql, [...values, { dir: oracledb.BIND_OUT, type: oracledb.NUMBER }], {
+        // Criar array de bind parameters na ordem correta + output parameter
+        const bindArray = [...values, { dir: oracledb.BIND_OUT, type: oracledb.NUMBER }];
+        
+        console.log(`Executando SQL: ${sql}`);
+        console.log(`Com bind array: ${JSON.stringify(bindArray, null, 2)}`);
+        
+        const result = await connection.execute(sql, bindArray, {
             autoCommit: true,
             outFormat: oracledb.OUT_FORMAT_OBJECT
         });
 
-        const newId = result.outBinds.outputId[0];
+        console.log('Resultado da execução:', JSON.stringify(result, null, 2));
+        
+        // Acessar o ID retornado corretamente - extrair valor do array
+        let newId = result.outBinds[0];
+        
+        // Se vier como array, extrair o primeiro elemento
+        if (Array.isArray(newId)) {
+            newId = newId[0];
+        }
+        
+        if (!newId) {
+            throw new Error('Não foi possível recuperar o ID do registro inserido');
+        }
+        
         console.log(`✅ Registro inserido na tabela ${tableName} com ID: ${newId}`);
         return newId;
         

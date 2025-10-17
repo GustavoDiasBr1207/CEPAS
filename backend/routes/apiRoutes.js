@@ -70,17 +70,24 @@ router.post('/login', async (req, res) => {
  * Endpoint: /api/familia-completa (POST)
  */
 router.post('/familia-completa', async (req, res) => {
+    console.log('=== RECEBIDA REQUISIÇÃO FAMÍLIA COMPLETA ===');
+    console.log('Headers:', req.headers);
+    console.log('Body recebido:', JSON.stringify(req.body, null, 2));
+    
     const dadosCompletos = req.body;
     const usuario = req.headers['x-user'] || 'sistema_api';
     
     try {
         // Validações básicas
         if (!dadosCompletos.nome_familia) {
+            console.log('ERRO: Nome da família não fornecido');
             return res.status(400).json({ 
                 success: false, 
                 message: 'Nome da família é obrigatório.' 
             });
         }
+
+        console.log('Iniciando inserção da família:', dadosCompletos.nome_familia);
 
         // 1. Inserir a família primeiro
         const dadosFamilia = {
@@ -95,10 +102,13 @@ router.post('/familia-completa', async (req, res) => {
             usuario_responsavel: usuario
         };
 
+        console.log('Inserindo família com dados:', dadosFamilia);
         const idFamilia = await insertRecord('Familia', dadosFamilia);
+        console.log('Família inserida com ID:', idFamilia);
 
         // 2. Inserir endereço (se fornecido)
         if (dadosCompletos.endereco && Object.keys(dadosCompletos.endereco).some(key => dadosCompletos.endereco[key])) {
+            console.log('Inserindo endereço...');
             const dadosEndereco = {
                 id_familia: idFamilia,
                 id_area: dadosCompletos.endereco.id_area || null,
@@ -108,9 +118,11 @@ router.post('/familia-completa', async (req, res) => {
                 complemento: dadosCompletos.endereco.complemento || null
             };
             await insertRecord('Endereco', dadosEndereco);
+            console.log('Endereço inserido com sucesso');
         }
 
         // 3. Inserir dados de animais (sempre inserir pois tem_animal é obrigatório)
+        console.log('Inserindo dados de animais...');
         const dadosAnimal = {
             id_familia: idFamilia,
             tem_animal: dadosCompletos.animal?.tem_animal || 0,
@@ -118,9 +130,11 @@ router.post('/familia-completa', async (req, res) => {
             qual_animal: dadosCompletos.animal?.qual_animal || null
         };
         await insertRecord('Animal', dadosAnimal);
+        console.log('Dados de animais inseridos com sucesso');
 
         // 4. Inserir estrutura da habitação (se fornecida)
         if (dadosCompletos.estrutura && Object.keys(dadosCompletos.estrutura).some(key => dadosCompletos.estrutura[key] !== '' && dadosCompletos.estrutura[key] !== null)) {
+            console.log('Inserindo estrutura da habitação...');
             const dadosEstrutura = {
                 id_familia: idFamilia,
                 tipo_habitacao: dadosCompletos.estrutura.tipo_habitacao || null,
@@ -135,10 +149,12 @@ router.post('/familia-completa', async (req, res) => {
                 tipo_camas: dadosCompletos.estrutura.tipo_camas || null
             };
             await insertRecord('EstruturaHabitacao', dadosEstrutura);
+            console.log('Estrutura da habitação inserida com sucesso');
         }
 
         // 5. Inserir dados de saneamento (se fornecidos)
         if (dadosCompletos.saneamento && Object.keys(dadosCompletos.saneamento).some(key => dadosCompletos.saneamento[key] !== '' && dadosCompletos.saneamento[key] !== null)) {
+            console.log('Inserindo dados de saneamento...');
             const dadosSaneamento = {
                 id_familia: idFamilia,
                 horta: dadosCompletos.saneamento.horta || 0,
@@ -150,8 +166,10 @@ router.post('/familia-completa', async (req, res) => {
                 trata_agua: dadosCompletos.saneamento.trata_agua || null
             };
             await insertRecord('RecursoSaneamento', dadosSaneamento);
+            console.log('Dados de saneamento inseridos com sucesso');
         }
 
+        console.log('=== CADASTRO COMPLETO FINALIZADO COM SUCESSO ===');
         res.status(201).json({
             success: true,
             message: 'Família cadastrada com sucesso com todos os dados relacionados!',
@@ -166,11 +184,27 @@ router.post('/familia-completa', async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Erro ao criar família completa:', error);
+        console.error('=== ERRO DETALHADO NO CADASTRO ===');
+        console.error('Erro completo:', error);
+        console.error('Message:', error.message);
+        console.error('Stack:', error.stack);
+        console.error('Dados recebidos:', JSON.stringify(dadosCompletos, null, 2));
+        
+        // Verificar se é erro específico do Oracle
+        let errorMessage = error.message;
+        if (error.message.includes('ORA-')) {
+            errorMessage = `Erro do banco Oracle: ${error.message}`;
+        }
+        
         res.status(500).json({
             success: false,
             message: 'Erro interno ao cadastrar a família completa.',
-            error: error.message
+            error: errorMessage,
+            details: {
+                originalError: error.message,
+                timestamp: new Date().toISOString(),
+                dadosRecebidos: Object.keys(dadosCompletos || {})
+            }
         });
     }
 });
