@@ -8,7 +8,8 @@ const {
     deleteRecord,
     beginTransaction,
     commit,
-    rollback
+    rollback,
+    fetchClobField
 } = require('../oracle');
 const router = express.Router();
 
@@ -230,6 +231,28 @@ router.get('/dados/:tableName', async (req, res) => {
     } catch (err) {
         // O erro já vem do oracle.js com uma mensagem detalhada da falha de consulta
         res.status(500).send(`Erro ao buscar dados da tabela ${tableName}: ${err.message}`);
+    }
+});
+
+/**
+ * Endpoint: /api/dados/:tableName/:id/field/:fieldName
+ * Retorna o conteúdo textual de um campo (ex.: CLOB) para um registro específico.
+ */
+router.get('/dados/:tableName/:id/field/:fieldName', async (req, res) => {
+    const { tableName, id, fieldName } = req.params;
+
+    if (!allowedTables.includes(tableName)) {
+        return res.status(400).send('Acesso negado ou tabela não encontrada.');
+    }
+
+    if (!id || !fieldName) return res.status(400).send('ID ou fieldName ausente.');
+
+    try {
+        const content = await fetchClobField(tableName, id, fieldName);
+        if (content === null || content === undefined) return res.status(404).send('Conteúdo não encontrado.');
+        res.status(200).send(content);
+    } catch (err) {
+        res.status(500).send(`Erro ao buscar campo ${fieldName} do registro ${id} em ${tableName}: ${err.message}`);
     }
 });
 

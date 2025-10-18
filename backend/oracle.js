@@ -210,6 +210,8 @@ async function rollback(connection) {
 module.exports = {
     checkDbConnection,
     fetchTableData,
+    // fetch single clob field content
+    fetchClobField,
     insertRecord,
     updateRecord,
     deleteRecord,
@@ -217,4 +219,47 @@ module.exports = {
     commit,
     rollback
 };
+
+/**
+ * Busca o conteúdo textual de um campo CLOB para um registro específico.
+ * Retorna string com o conteúdo do CLOB (ou null se coluna for null).
+ */
+async function fetchClobField(tableName, id, fieldName) {
+    let connection;
+    try {
+        connection = await oracledb.getConnection(dbConfig);
+        const safeTable = tableName.toUpperCase();
+        const idCol = `ID_${safeTable}`;
+        const sql = `SELECT ${fieldName} FROM ${safeTable} WHERE ${idCol} = :id`;
+
+        const result = await connection.execute(sql, { id }, { outFormat: oracledb.OUT_FORMAT_OBJECT });
+        if (!result || !result.rows || result.rows.length === 0) return null;
+        const val = result.rows[0][fieldName];
+        if (val === null || val === undefined) return null;
+
+        // If driver already returned string, return as-is
+        if (typeof val === 'string') return val;
+
+        // If it's a Lob (stream), read it
+        if (val && typeof val === 'object' && typeof val.on === 'function') {
+            return await new Promise((resolve, reject) => {
+                let data = '';
+                val.setEncoding('utf8');
+                val.on('data', chunk => { data += chunk; });
+                val.on('end', () => { resolve(data); });
+                val.on('error', err => { reject(err); });
+            });
+        }
+
+        // Fallback: stringify
+        try { return String(val); } catch (e) { return null; }
+    } catch (err) {
+        console.error(`Erro fetchClobField ${tableName}.${fieldName} id=${id}:`, err);
+        throw err;
+    } finally {
+        if (connection) {
+            try { await connection.close(); } catch (e) { console.error('Erro fechando conexão:', e); }
+        }
+    }
+}
 

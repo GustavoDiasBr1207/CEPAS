@@ -12,6 +12,7 @@ const ConsultaCadastros = ({ setPage }) => {
     const [columns, setColumns] = useState([]);
     const [hasSearched, setHasSearched] = useState(false);
     const [filters, setFilters] = useState({}); // { columnName: filterString }
+    const [globalFilter, setGlobalFilter] = useState('');
     const [filteredData, setFilteredData] = useState(null);
     const [loading, setLoading] = useState(false); // retained for compatibility
     const [status, setStatus] = useState('Selecione uma tabela e clique em Consultar');
@@ -52,61 +53,36 @@ const ConsultaCadastros = ({ setPage }) => {
 
     const applyFilters = () => {
         if (!Array.isArray(data)) return;
-        const activeFilters = Object.entries(filters).filter(([_, v]) => v && v.toString().trim() !== '');
-        if (activeFilters.length === 0) {
-            setFilteredData(null);
-            return;
-        }
+        const q = (globalFilter || '').toString().trim().toLowerCase();
+        if (!q) { setFilteredData(null); return; }
 
         const result = data.filter(row => {
-            return activeFilters.every(([col, expr]) => {
-                const raw = row[col];
-                if (raw === null || raw === undefined) return false;
-                const s = expr.toString().trim();
-
-                // Numeric operators: >, <, =
-                if (/^[<>]=?\s*[-+]?[0-9]+(\.[0-9]+)?$/.test(s)) {
-                    // extract operator and number
-                    const m = s.match(/^([<>]=?)\s*([-+]?[0-9]+(?:\.[0-9]+)?)$/);
-                    if (!m) return false;
-                    const op = m[1];
-                    const num = parseFloat(m[2]);
-                    const val = parseFloat(raw);
-                    if (Number.isNaN(val)) return false;
-                    if (op === '>') return val > num;
-                    if (op === '>=') return val >= num;
-                    if (op === '<') return val < num;
-                    if (op === '<=') return val <= num;
-                    return false;
-                }
-
-                // Equality for numbers: =number
-                if (/^=\s*[-+]?[0-9]+(\.[0-9]+)?$/.test(s)) {
-                    const num = parseFloat(s.replace('=', '').trim());
-                    const val = parseFloat(raw);
-                    return !Number.isNaN(val) && val === num;
-                }
-
-                // Default: case-insensitive contains for strings
-                return raw.toString().toLowerCase().includes(s.toLowerCase());
+            // search across all values of the row
+            return Object.values(row).some(v => {
+                if (v === null || v === undefined) return false;
+                try {
+                    const s = (typeof v === 'object') ? JSON.stringify(v) : String(v);
+                    return s.toLowerCase().includes(q);
+                } catch (e) { return false; }
             });
         });
-
         setFilteredData(result);
     };
 
     const clearFilters = () => {
         setFilters({});
+        setGlobalFilter('');
         setFilteredData(null);
     };
 
     const renderTable = () => {
         if (!data) return null;
         const source = Array.isArray(filteredData) ? filteredData : data;
-        if (Array.isArray(source)) {
+            if (Array.isArray(source)) {
             if (source.length === 0) return <p>Nenhum registro encontrado.</p>;
             if (source.length > 10000) return <p className="text-yellow-600">Aviso: muitos registros ({source.length}). Considere filtrar por coluna ou usar paginação.</p>;
-            return <DataTable columns={columns} data={source} initialPageSize={50} />;
+            const idCol = `ID_${table.toUpperCase()}`;
+            return <DataTable columns={columns} data={source} initialPageSize={50} tableName={table} idColumnName={idCol} />;
         }
 
         // registro único
@@ -156,6 +132,7 @@ const ConsultaCadastros = ({ setPage }) => {
                 {hasSearched && (
                     <div>
                         <div className="flex items-center space-x-3 mt-3">
+                            <input placeholder="Filtro geral..." value={globalFilter} onChange={(e) => setGlobalFilter(e.target.value)} className="form-input flex-grow" />
                             <button onClick={applyFilters} className="primary-btn" disabled={columns.length === 0}>Aplicar filtros</button>
                             <button onClick={clearFilters} className="primary-btn" disabled={columns.length === 0}>Limpar filtros</button>
                         </div>
@@ -166,6 +143,8 @@ const ConsultaCadastros = ({ setPage }) => {
                 )}
 
                 <p className="mt-2 text-sm text-gray-500">Status: {status}</p>
+
+                
 
                 {renderTable()}
 

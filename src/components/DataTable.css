@@ -1,0 +1,85 @@
+/* Styles for DataTable component - keep table inside card, allow truncation with tooltip */
+.data-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  border-radius: 0.5rem; /* same as rounded-xl */
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed; /* rely on CSS for column sizing */
+}
+
+.data-table thead th {
+  padding: 0.75rem 1rem; /* py-3 px-4 approx */
+  text-align: left;
+  font-weight: 600;
+  vertical-align: bottom;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.data-table thead tr.filter-row th {
+  padding: 0.25rem 0.5rem;
+}
+
+.data-table td {
+  padding: 0.25rem 0.5rem; /* smaller padding to help layout */
+  vertical-align: top;
+  white-space: nowrap; /* truncate long values */
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Allow breaking words for very long single tokens (urls/json) when user disables truncation */
+.data-table td.break-words {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* Make header filter inputs compact and full width */
+.data-table thead input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.25rem 0.5rem;
+}
+
+/* Responsive: allow the card to scroll horizontally on small screens */
+@media (max-width: 640px) {
+  .data-table thead th, .data-table td { font-size: 0.85rem; }
+}
+
+/* small view button inside cell */
+.cell-view-btn {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.125rem 0.4rem;
+  border-radius: 0.25rem;
+  background: #edf2f7; /* gray-100 */
+  color: #1a202c; /* gray-800 */
+  font-size: 0.8rem;
+  cursor: pointer;
+  border: 1px solid #e2e8f0;
+}
+
+/* Modal */
+.dt-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+.dt-modal {
+  background: white;
+  max-width: 90%;
+  max-height: 80%;
+  overflow: auto;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+}
+.dt-modal pre { white-space: pre-wrap; word-break: break-word; }
