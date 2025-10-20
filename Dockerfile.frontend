@@ -17,6 +17,11 @@ RUN npm install
 COPY public/ ./public/
 COPY src/ ./src/
 
+# Configure a variável de ambiente para o build
+# Para desenvolvimento local, mantém localhost
+# Para Docker, será sobrescrito no docker-compose
+ENV REACT_APP_API_BASE_URL=http://localhost:3001/api
+
 # Execute o build do projeto React.
 # Isso vai criar a pasta `build` com os arquivos estáticos otimizados.
 RUN npm run build
@@ -29,6 +34,9 @@ FROM nginx:alpine
 # Copie os arquivos de build do React (da etapa "builder") para o diretório
 # padrão do Nginx, onde ele vai servi-los.
 COPY --from=builder /app/build /usr/share/nginx/html
+
+# Copie a configuração personalizada do Nginx
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Exponha a porta 80, que é a porta padrão do Nginx.
 # A aplicação estará acessível através dessa porta.

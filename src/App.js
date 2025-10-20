@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, useParams, Navigate, Link } from 'react-router-dom';
 // Importa ícones necessários para o componente Consulta e Cadastro
 import { Search, Loader, Zap, AlertTriangle, CheckCircle, Save } from 'lucide-react';
 
 // Importa os novos componentes
 import CadastroFamilia from './pages/CadastroFamilia';
+import ListaFamilias from './pages/ListaFamilias';
+import EditarFamilia from './pages/EditarFamilia';
 import TesteCadastro from './components/TesteCadastro';
 
 // URL base do seu backend (o servidor Express rodará na porta 3001)
@@ -409,7 +412,7 @@ const CadastroFamiliaAntigo = ({ setPage }) => {
 /**
  * Componente simples para a página inicial (Home).
  */
-const Home = ({ setPage, pingStatus }) => {
+const Home = ({ pingStatus }) => {
     // Estilos dinâmicos para o status do ping
     const statusColor = pingStatus.startsWith('✅') ? 'bg-green-100 text-green-700 border-green-400' : 
                         pingStatus.startsWith('❌') ? 'bg-red-100 text-red-700 border-red-400' :
@@ -431,30 +434,11 @@ const Home = ({ setPage, pingStatus }) => {
                 </div>
 
                 <div className="space-y-4">
-                    <button 
-                        onClick={() => setPage('consulta')} 
-                        className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-bold shadow-md transition-all duration-300 hover:bg-blue-700 transform hover:scale-[1.02]"
-                    >
-                        Acessar Consulta Geral
-                    </button>
-                    <button 
-                        onClick={() => setPage('cadastro')} 
-                        className="w-full bg-green-600 text-white px-6 py-3 rounded-lg font-bold shadow-md transition-all duration-300 hover:bg-green-700 transform hover:scale-[1.02]"
-                    >
-                        Cadastro Completo de Família
-                    </button>
-                    <button 
-                        onClick={() => setPage('cadastro-antigo')} 
-                        className="w-full bg-yellow-600 text-white px-6 py-3 rounded-lg font-bold shadow-md transition-all duration-300 hover:bg-yellow-700 transform hover:scale-[1.02]"
-                    >
-                        Cadastro Antigo (Simples)
-                    </button>
-                    <button 
-                        onClick={() => setPage('teste')} 
-                        className="w-full bg-purple-600 text-white px-6 py-3 rounded-lg font-bold shadow-md transition-all duration-300 hover:bg-purple-700 transform hover:scale-[1.02]"
-                    >
-                        🧪 Testes do Sistema
-                    </button>
+                    <Link to="/consulta" className="w-full block bg-blue-600 text-white px-6 py-3 rounded-lg font-bold shadow-md transition-all duration-300 hover:bg-blue-700 transform hover:scale-[1.02] text-center">Acessar Consulta Geral</Link>
+                    <Link to="/cadastro" className="w-full block bg-green-600 text-white px-6 py-3 rounded-lg font-bold shadow-md transition-all duration-300 hover:bg-green-700 transform hover:scale-[1.02] text-center">Cadastro Completo de Família</Link>
+                    <Link to="/lista-familias" className="w-full block bg-blue-800 text-white px-6 py-3 rounded-lg font-bold shadow-md transition-all duration-300 hover:bg-blue-900 transform hover:scale-[1.02] text-center">📋 Lista Famílias</Link>
+                    <Link to="/cadastro-antigo" className="w-full block bg-yellow-600 text-white px-6 py-3 rounded-lg font-bold shadow-md transition-all duration-300 hover:bg-yellow-700 transform hover:scale-[1.02] text-center">Cadastro Antigo (Simples)</Link>
+                    <Link to="/teste" className="w-full block bg-purple-600 text-white px-6 py-3 rounded-lg font-bold shadow-md transition-all duration-300 hover:bg-purple-700 transform hover:scale-[1.02] text-center">🧪 Testes do Sistema</Link>
                 </div>
             </div>
         </div>
@@ -466,15 +450,15 @@ const Home = ({ setPage, pingStatus }) => {
 // 2. Componente de Navegação (Nav)
 // ------------------------------------
 
-const Nav = ({ currentPage, setPage }) => {
+const Nav = () => {
     const navItems = [
-        { name: 'Home', page: 'home' },
-        { name: 'Consulta Geral', page: 'consulta' },
-        { name: 'Cadastro Completo', page: 'cadastro' },
-        { name: 'Cadastro Antigo', page: 'cadastro-antigo' },
-        { name: '🧪 Testes', page: 'teste' },
+        { name: 'Home', path: '/' },
+        { name: 'Consulta Geral', path: '/consulta' },
+        { name: 'Cadastro Completo', path: '/cadastro' },
+        { name: '📋 Lista Famílias', path: '/lista-familias' },
+        { name: 'Cadastro Antigo', path: '/cadastro-antigo' },
+        { name: '🧪 Testes', path: '/teste' },
     ];
-
     return (
         <header className="bg-white shadow-lg sticky top-0 z-10">
             <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
@@ -483,17 +467,13 @@ const Nav = ({ currentPage, setPage }) => {
                 </div>
                 <div className="flex space-x-4">
                     {navItems.map((item) => (
-                        <button
-                            key={item.page}
-                            onClick={() => setPage(item.page)}
-                            className={`px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 
-                                ${currentPage === item.page 
-                                    ? 'bg-blue-600 text-white shadow-md' 
-                                    : 'text-gray-600 hover:bg-gray-100 hover:text-blue-600'
-                                }`}
+                        <Link
+                            key={item.path}
+                            to={item.path}
+                            className={`px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 text-gray-600 hover:bg-gray-100 hover:text-blue-600`}
                         >
                             {item.name}
-                        </button>
+                        </Link>
                     ))}
                 </div>
             </nav>
@@ -510,6 +490,8 @@ const App = () => {
     const [currentPage, setCurrentPage] = useState('home');
     // Estado para exibir o status do backend
     const [pingStatus, setPingStatus] = useState('⏳ Conectando...');
+    // Estado para controlar a edição de família
+    const [familiaEditandoId, setFamiliaEditandoId] = useState(null);
 
     // Função para verificar o status do backend
     const checkBackendStatus = async () => {
@@ -528,17 +510,47 @@ const App = () => {
         checkBackendStatus();
     }, []);
 
+    // Função para navegar para edição de família
+    const handleEditarFamilia = (idFamilia) => {
+        setFamiliaEditandoId(idFamilia);
+        setCurrentPage('editar-familia');
+    };
+
+    // Função para voltar da edição para a lista
+    const handleVoltarParaLista = () => {
+        setFamiliaEditandoId(null);
+        setCurrentPage('lista-familias');
+    };
+
+    // Função para sucesso da edição
+    const handleSucessoEdicao = () => {
+        setFamiliaEditandoId(null);
+        setCurrentPage('lista-familias');
+    };
+
     // Função para renderizar a página correta baseada no estado
     const renderPage = () => {
         switch (currentPage) {
             case 'home':
-                return <Home setPage={setCurrentPage} pingStatus={pingStatus} />;
+                return <Home setCurrentPage={setCurrentPage} pingStatus={pingStatus} />;
             case 'consulta':
                 // A ConsultaGeral agora usa o código do seu Consulta.js
                 return <ConsultaGeral setPage={setCurrentPage} />;
             case 'cadastro':
                 // Novo cadastro completo
                 return <CadastroFamilia />;
+            case 'lista-familias':
+                // Lista e gerenciamento de famílias
+                return <ListaFamilias onEditarFamilia={handleEditarFamilia} />;
+            case 'editar-familia':
+                // Edição de família
+                return (
+                    <EditarFamilia 
+                        familiaId={familiaEditandoId}
+                        onVoltar={handleVoltarParaLista}
+                        onSucesso={handleSucessoEdicao}
+                    />
+                );
             case 'cadastro-antigo':
                 // Cadastro antigo mantido para compatibilidade
                 return <CadastroFamiliaAntigo setPage={setCurrentPage} />;
@@ -573,13 +585,25 @@ const App = () => {
         }
     };
 
+    function EditarFamiliaWrapper(props) {
+        const { id } = useParams();
+        return <EditarFamilia familiaId={id} {...props} />;
+    }
+
     return (
-        <div className="min-h-screen bg-gray-50 font-sans">
-            <Nav currentPage={currentPage} setPage={setCurrentPage} />
+        <BrowserRouter>
+            <Nav currentPage={null} setPage={() => {}} />
             <main>
-                {renderPage()}
+                <Routes>
+                    <Route path="/" element={<Home setPage={() => {}} pingStatus={pingStatus} />} />
+                    <Route path="/consulta" element={<ConsultaGeral setPage={() => {}} />} />
+                    <Route path="/cadastro" element={<CadastroFamilia />} />
+                    <Route path="/lista-familias" element={<ListaFamilias />} />
+                    <Route path="/editar-familia/:id" element={<EditarFamiliaWrapper />} />
+                    <Route path="*" element={<Navigate to="/" />} />
+                </Routes>
             </main>
-        </div>
+        </BrowserRouter>
     );
 };
 
