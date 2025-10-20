@@ -1,0 +1,217 @@
+/* src/components/MembroForm.css */
+
+.membro-form-container {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+    margin: 15px 0;
+    border: 1px solid #dee2e6;
+}
+
+.membro-form {
+    max-width: 100%;
+}
+
+.form-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #007bff;
+}
+
+.form-header h3 {
+    margin: 0;
+    color: #007bff;
+    font-size: 1.3rem;
+}
+
+.member-id {
+    background: #e9ecef;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    color: #6c757d;
+}
+
+.form-section {
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 15px;
+    margin-bottom: 20px;
+    background: white;
+}
+
+.form-section legend {
+    background: #007bff;
+    color: white;
+    padding: 5px 15px;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    margin-bottom: 15px;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.form-group label {
+    font-weight: 600;
+    margin-bottom: 5px;
+    color: #333;
+    font-size: 0.9rem;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    transition: border-color 0.3s ease;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.form-group small {
+    margin-top: 5px;
+    color: #6c757d;
+    font-size: 0.8rem;
+    font-style: italic;
+}
+
+.checkbox-group {
+    flex-direction: row !important;
+    align-items: center;
+}
+
+.checkbox-group label {
+    margin: 0;
+    margin-left: 8px;
+    font-weight: normal;
+    cursor: pointer;
+}
+
+.checkbox-group input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+    margin-right: 8px;
+}
+
+.checkbox-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.checkbox-grid label {
+    display: flex;
+    align-items: center;
+    padding: 8px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.checkbox-grid label:hover {
+    background: #e9ecef;
+}
+
+.checkbox-grid input[type="checkbox"] {
+    margin-right: 8px;
+    transform: scale(1.1);
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 25px;
+    padding-top: 20px;
+    border-top: 1px solid #dee2e6;
+}
+
+.btn-cancel,
+.btn-delete,
+.btn-save {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 0.9rem;
+}
+
+.btn-cancel {
+    background: #6c757d;
+    color: white;
+}
+
+.btn-cancel:hover {
+    background: #5a6268;
+}
+
+.btn-delete {
+    background: #dc3545;
+    color: white;
+}
+
+.btn-delete:hover {
+    background: #c82333;
+}
+
+.btn-save {
+    background: #28a745;
+    color: white;
+}
+
+.btn-save:hover {
+    background: #218838;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+    .form-row {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+    
+    .checkbox-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .form-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .form-actions {
+        flex-direction: column;
+    }
+    
+    .membro-form-container {
+        padding: 15px;
+        margin: 10px 0;
+    }
+}

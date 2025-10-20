@@ -1,7 +1,6 @@
 // src/pages/CadastroFamilia.js
 import React, { useState, useEffect } from 'react';
 import Formulario from '../components/Formulario';
-import * as cepasService from '../services/cepasService';
 
 const CadastroFamilia = () => {
     const [loading, setLoading] = useState(false);
