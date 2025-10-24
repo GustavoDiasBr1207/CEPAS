@@ -253,9 +253,124 @@ export function validateCompleteForm(formData) {
         allErrors.push(...saneamentoValidation.errors);
     }
 
+    // Valida membros se fornecidos
+    if (formData.membros && Array.isArray(formData.membros)) {
+        const membrosValidation = validateMembrosData(formData.membros);
+        allErrors.push(...membrosValidation.errors);
+    }
+
+    // Valida entrevista se fornecida
+    if (formData.entrevista) {
+        const entrevistaValidation = validateEntrevistaData(formData.entrevista);
+        allErrors.push(...entrevistaValidation.errors);
+    }
+
     return {
         isValid: allErrors.length === 0,
         errors: allErrors
+    };
+}
+
+/**
+ * Valida dados dos membros da família
+ * @param {Array} membros - Array de membros
+ * @returns {Object} { isValid: boolean, errors: string[] }
+ */
+export function validateMembrosData(membros) {
+    const errors = [];
+
+    if (!Array.isArray(membros)) {
+        errors.push('Lista de membros deve ser um array');
+        return { isValid: false, errors };
+    }
+
+    // Validar cada membro
+    membros.forEach((membro, index) => {
+        const membroNum = index + 1;
+
+        // Nome é obrigatório
+        if (!membro.nome || membro.nome.trim() === '') {
+            errors.push(`Membro ${membroNum}: Nome é obrigatório`);
+        }
+
+        if (membro.nome && membro.nome.length > 150) {
+            errors.push(`Membro ${membroNum}: Nome deve ter no máximo 150 caracteres`);
+        }
+
+        // Validar data de nascimento se fornecida
+        if (membro.data_nascimento) {
+            const nascimento = new Date(membro.data_nascimento);
+            const hoje = new Date();
+            
+            if (nascimento > hoje) {
+                errors.push(`Membro ${membroNum}: Data de nascimento não pode ser futura`);
+            }
+            
+            const idade = hoje.getFullYear() - nascimento.getFullYear();
+            if (idade > 150) {
+                errors.push(`Membro ${membroNum}: Data de nascimento parece inválida (idade muito alta)`);
+            }
+        }
+
+        // Validar campos de texto com limite
+        if (membro.relacao && membro.relacao.length > 80) {
+            errors.push(`Membro ${membroNum}: Relação deve ter no máximo 80 caracteres`);
+        }
+
+        if (membro.ocupacao && membro.ocupacao.length > 120) {
+            errors.push(`Membro ${membroNum}: Ocupação deve ter no máximo 120 caracteres`);
+        }
+
+        if (membro.religiao && membro.religiao.length > 80) {
+            errors.push(`Membro ${membroNum}: Religião deve ter no máximo 80 caracteres`);
+        }
+
+        // Validar criança CEPAS se ativa
+        if (membro.crianca_cepas && membro.crianca_cepas.ativa) {
+            if (!membro.crianca_cepas.data_inicio) {
+                errors.push(`Membro ${membroNum}: Data de início no CEPAS é obrigatória quando participa do programa`);
+            }
+        }
+    });
+
+    return {
+        isValid: errors.length === 0,
+        errors
+    };
+}
+
+/**
+ * Valida dados da entrevista
+ * @param {Object} entrevista - Dados da entrevista
+ * @returns {Object} { isValid: boolean, errors: string[] }
+ */
+export function validateEntrevistaData(entrevista) {
+    const errors = [];
+
+    // Data da entrevista é obrigatória
+    if (!entrevista.data_entrevista) {
+        errors.push('Data da entrevista é obrigatória');
+    } else {
+        const dataEntrevista = new Date(entrevista.data_entrevista);
+        const hoje = new Date();
+        
+        if (dataEntrevista > hoje) {
+            errors.push('Data da entrevista não pode ser futura');
+        }
+    }
+
+    // Validar limites de caracteres
+    if (entrevista.entrevistado && entrevista.entrevistado.length > 150) {
+        errors.push('Nome do entrevistado deve ter no máximo 150 caracteres');
+    }
+
+    if (entrevista.telefone_contato && entrevista.telefone_contato.length > 30) {
+        errors.push('Telefone de contato deve ter no máximo 30 caracteres');
+    }
+
+    return {
+        isValid: errors.length === 0,
+        errors
     };
 }
 

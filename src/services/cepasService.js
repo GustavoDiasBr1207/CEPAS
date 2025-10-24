@@ -59,20 +59,34 @@ export async function createFamilia(familiaData) {
 // -------------------------------------------------------------------
 
 /**
- * Busca todos os registros de famílias no backend.
+ * Busca todos os registros de famílias no backend usando o endpoint otimizado.
  * @returns {Array<Object>} Uma lista de objetos de famílias.
  */
 export async function getFamilias() {
-    const url = `${API_BASE_URL}/dados/${TABLE_NAME}`; 
+    const url = `${API_BASE_URL}/familias`; // Novo endpoint otimizado
 
     try {
-        const response = await fetch(url);
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-user': 'usuario_sistema'
+            }
+        });
 
         if (!response.ok) {
-            throw new Error(`Erro ${response.status}: Falha ao buscar as famílias.`);
+            let errorMessage = 'Falha ao buscar as famílias.';
+            try {
+                const errorBody = await response.json();
+                errorMessage = errorBody.message || errorBody.error || errorMessage;
+            } catch (e) {
+                errorMessage = await response.text() || errorMessage;
+            }
+            throw new Error(`Erro ${response.status}: ${errorMessage}`);
         }
         
-        return response.json();
+        const result = await response.json();
+        return result.data || []; // Retorna o array de dados
 
     } catch (error) {
         console.error('Erro no serviço getFamilias:', error);

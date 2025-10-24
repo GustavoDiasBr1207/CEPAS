@@ -1,0 +1,134 @@
+/* Estilos para o componente Tabela */
+
+.tabela-container {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    margin: 20px 0;
+}
+
+.tabela-wrapper {
+    overflow-x: auto;
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+.tabela {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.tabela-header {
+    background: #f8f9fa;
+    border-bottom: 2px solid #dee2e6;
+    padding: 12px 8px;
+    text-align: left;
+    font-weight: 600;
+    color: #495057;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.tabela-row {
+    border-bottom: 1px solid #dee2e6;
+    transition: background-color 0.2s ease;
+}
+
+.tabela-row:hover {
+    background-color: #f8f9fa;
+}
+
+.tabela-row.clickable {
+    cursor: pointer;
+}
+
+.tabela-row.clickable:hover {
+    background-color: #e9ecef;
+}
+
+.tabela-cell {
+    padding: 12px 8px;
+    border-right: 1px solid #dee2e6;
+    vertical-align: top;
+    word-wrap: break-word;
+    max-width: 200px;
+}
+
+.tabela-cell:last-child {
+    border-right: none;
+}
+
+.tabela-footer {
+    background: #f8f9fa;
+    border-top: 1px solid #dee2e6;
+    padding: 10px 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.tabela-count {
+    font-size: 12px;
+    color: #6c757d;
+    font-weight: 500;
+}
+
+.tabela-empty {
+    padding: 40px 20px;
+    text-align: center;
+    color: #6c757d;
+}
+
+.tabela-empty p {
+    margin: 0;
+    font-size: 16px;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+    .tabela {
+        font-size: 12px;
+    }
+    
+    .tabela-header,
+    .tabela-cell {
+        padding: 8px 6px;
+    }
+    
+    .tabela-cell {
+        max-width: 150px;
+    }
+}
+
+/* Estados especiais */
+.tabela-row.selected {
+    background-color: #e3f2fd;
+}
+
+.tabela-row.selected:hover {
+    background-color: #bbdefb;
+}
+
+/* Indicadores visuais para diferentes tipos de dados */
+.tabela-cell.status-ativo {
+    color: #28a745;
+    font-weight: 500;
+}
+
+.tabela-cell.status-inativo {
+    color: #dc3545;
+    font-weight: 500;
+}
+
+.tabela-cell.numero {
+    text-align: right;
+    font-family: 'Courier New', monospace;
+}
+
+.tabela-cell.data {
+    font-family: 'Courier New', monospace;
+    color: #495057;
+}

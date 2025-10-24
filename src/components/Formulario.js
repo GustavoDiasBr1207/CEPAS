@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { validateCompleteForm, formatErrorMessages } from '../utils/validationHelpers';
+import MembrosList from './MembrosList';
 import './Formulario.css';
 
-function Formulario({ onSave, disabled = false }) {
+function Formulario({ onSave, disabled = false, dadosIniciais = null, modoEdicao = false }) {
     // Estado para armazenar os dados do formulário baseado na tabela Familia do Oracle
     const [formData, setFormData] = useState({
         // Dados da família (tabela Familia)
@@ -57,6 +58,17 @@ function Formulario({ onSave, disabled = false }) {
         }
     });
 
+    // Lista de membros da família
+    const [membros, setMembros] = useState([]);
+    
+    // Dados de entrevista
+    const [entrevistaData, setEntrevistaData] = useState({
+        data_entrevista: new Date().toISOString().split('T')[0],
+        entrevistado: '',
+        telefone_contato: '',
+        observacoes: ''
+    });
+
     const [areas, setAreas] = useState([]);
     const [validationErrors, setValidationErrors] = useState([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -77,11 +89,52 @@ function Formulario({ onSave, disabled = false }) {
         fetchAreas();
     }, []);
 
+    // Carregar dados iniciais quando em modo edição
+    useEffect(() => {
+        if (modoEdicao && dadosIniciais) {
+            console.log('🔄 Carregando dados iniciais no formulário:', dadosIniciais);
+            
+            // Atualizar formData com os dados principais e objetos aninhados
+            setFormData(prevData => ({
+                ...prevData,
+                nome_familia: dadosIniciais.nome_familia || '',
+                migracao: dadosIniciais.migracao || '',
+                estado_origem: dadosIniciais.estado_origem || '',
+                cidade_origem: dadosIniciais.cidade_origem || '',
+                recebe_beneficio: dadosIniciais.recebe_beneficio || 0,
+                possui_plano_saude: dadosIniciais.possui_plano_saude || 0,
+                convenio: dadosIniciais.convenio || '',
+                observacoes: dadosIniciais.observacoes || '',
+                endereco: dadosIniciais.endereco || prevData.endereco,
+                animal: dadosIniciais.animal || prevData.animal,
+                estrutura: dadosIniciais.estrutura || prevData.estrutura,
+                saneamento: dadosIniciais.saneamento || prevData.saneamento
+            }));
+
+            // Atualizar membros
+            if (dadosIniciais.membros && Array.isArray(dadosIniciais.membros)) {
+                setMembros(dadosIniciais.membros);
+            }
+
+            // Atualizar entrevista
+            if (dadosIniciais.entrevista) {
+                setEntrevistaData(dadosIniciais.entrevista);
+            }
+        }
+    }, [dadosIniciais, modoEdicao]);
+
     // Função que atualiza o estado a cada mudança nos campos
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
         
-        if (name.includes('.')) {
+        if (name.startsWith('entrevista.')) {
+            // Para campos de entrevista
+            const field = name.split('.')[1];
+            setEntrevistaData(prevData => ({
+                ...prevData,
+                [field]: value
+            }));
+        } else if (name.includes('.')) {
             // Para campos aninhados (endereco.rua, animal.tem_animal, etc.)
             const [section, field] = name.split('.');
             setFormData(prevData => ({
@@ -109,8 +162,15 @@ function Formulario({ onSave, disabled = false }) {
         // Limpar erros anteriores
         setValidationErrors([]);
         
+        // Preparar dados completos para validação (incluindo membros e entrevista)
+        const dadosCompletos = {
+            ...formData,
+            membros: membros,
+            entrevista: entrevistaData
+        };
+        
         // Validar dados antes do envio
-        const validation = validateCompleteForm(formData);
+        const validation = validateCompleteForm(dadosCompletos);
         
         if (!validation.isValid) {
             setValidationErrors(validation.errors);
@@ -137,7 +197,13 @@ function Formulario({ onSave, disabled = false }) {
             endereco: formData.endereco,
             animal: formData.animal,
             estrutura: formData.estrutura,
-            saneamento: formData.saneamento
+            saneamento: formData.saneamento,
+            
+            // Membros da família
+            membros: membros,
+            
+            // Dados da entrevista
+            entrevista: entrevistaData
         };
 
         onSave(dadosParaEnvio);
@@ -145,8 +211,8 @@ function Formulario({ onSave, disabled = false }) {
     };
 
     return (
-        <div className="card formulario-container">
-            <h2 className="card-header">Cadastro Completo de Família</h2>
+        <div className="formulario-container">
+            <h2>Cadastro Completo de Família</h2>
             
             {/* Exibir erros de validação */}
             {validationErrors.length > 0 && (
@@ -157,6 +223,12 @@ function Formulario({ onSave, disabled = false }) {
                     </div>
                 </div>
             )}
+
+            {/* Seção: Membros da Família - FORA do formulário para evitar conflitos */}
+            <MembrosList 
+                membros={membros}
+                onMembrosChange={setMembros}
+            />
             
             <form onSubmit={handleSubmit} className="familia-form">
                 
@@ -175,7 +247,6 @@ function Formulario({ onSave, disabled = false }) {
                             required
                             maxLength="150"
                             disabled={disabled || isSubmitting}
-                            className="form-input"
                         />
                     </div>
 
@@ -190,7 +261,6 @@ function Formulario({ onSave, disabled = false }) {
                                 onChange={handleChange}
                                 maxLength="50"
                                 placeholder="Ex: Rural para urbana"
-                                className="form-input"
                             />
                         </div>
                         
@@ -203,7 +273,6 @@ function Formulario({ onSave, disabled = false }) {
                                 value={formData.estado_origem}
                                 onChange={handleChange}
                                 maxLength="80"
-                                className="form-input"
                             />
                         </div>
                         
@@ -262,14 +331,13 @@ function Formulario({ onSave, disabled = false }) {
 
                     <div className="form-group">
                         <label htmlFor="observacoes">Observações:</label>
-                            <textarea
+                        <textarea
                             id="observacoes"
                             name="observacoes"
                             value={formData.observacoes}
                             onChange={handleChange}
                             rows="3"
                             placeholder="Observações gerais sobre a família..."
-                            className="form-input"
                         />
                     </div>
                 </fieldset>
@@ -286,7 +354,6 @@ function Formulario({ onSave, disabled = false }) {
                                 name="endereco.id_area"
                                 value={formData.endereco.id_area}
                                 onChange={handleChange}
-                                className="form-input"
                             >
                                 <option value="">Selecione uma área</option>
                                 {areas.map(area => (
@@ -306,7 +373,6 @@ function Formulario({ onSave, disabled = false }) {
                                 value={formData.endereco.quadra}
                                 onChange={handleChange}
                                 maxLength="30"
-                                className="form-input"
                             />
                         </div>
                     </div>
@@ -321,7 +387,6 @@ function Formulario({ onSave, disabled = false }) {
                                 value={formData.endereco.rua}
                                 onChange={handleChange}
                                 maxLength="100"
-                                className="form-input"
                             />
                         </div>
                         
@@ -334,23 +399,21 @@ function Formulario({ onSave, disabled = false }) {
                                 value={formData.endereco.numero_casa}
                                 onChange={handleChange}
                                 maxLength="20"
-                                className="form-input"
                             />
                         </div>
                     </div>
 
                     <div className="form-group">
                         <label htmlFor="endereco.complemento">Complemento:</label>
-                            <input
-                                type="text"
-                                id="endereco.complemento"
-                                name="endereco.complemento"
-                                value={formData.endereco.complemento}
-                                onChange={handleChange}
-                                maxLength="150"
-                                placeholder="Ex: Próximo ao mercado, ao lado da escola..."
-                                className="form-input"
-                            />
+                        <input
+                            type="text"
+                            id="endereco.complemento"
+                            name="endereco.complemento"
+                            value={formData.endereco.complemento}
+                            onChange={handleChange}
+                            maxLength="150"
+                            placeholder="Ex: Próximo ao mercado, ao lado da escola..."
+                        />
                     </div>
                 </fieldset>
 
@@ -381,7 +444,6 @@ function Formulario({ onSave, disabled = false }) {
                                     value={formData.animal.qtd_animais}
                                     onChange={handleChange}
                                     min="1"
-                                    className="form-input"
                                 />
                             </div>
                             
@@ -395,7 +457,6 @@ function Formulario({ onSave, disabled = false }) {
                                     onChange={handleChange}
                                     maxLength="30"
                                     placeholder="Ex: Cães, Gatos, Galinhas..."
-                                    className="form-input"
                                 />
                             </div>
                         </div>
@@ -414,7 +475,6 @@ function Formulario({ onSave, disabled = false }) {
                                 name="estrutura.tipo_habitacao"
                                 value={formData.estrutura.tipo_habitacao}
                                 onChange={handleChange}
-                                className="form-input"
                             >
                                 <option value="">Selecione</option>
                                 <option value="Casa">Casa</option>
@@ -431,7 +491,6 @@ function Formulario({ onSave, disabled = false }) {
                                 name="estrutura.tipo_lote"
                                 value={formData.estrutura.tipo_lote}
                                 onChange={handleChange}
-                                className="form-input"
                             >
                                 <option value="">Selecione</option>
                                 <option value="Próprio">Próprio</option>
@@ -448,7 +507,6 @@ function Formulario({ onSave, disabled = false }) {
                                 name="estrutura.situacao_convivencia"
                                 value={formData.estrutura.situacao_convivencia}
                                 onChange={handleChange}
-                                className="form-input"
                             >
                                 <option value="">Selecione</option>
                                 <option value="Somente a família">Somente a família</option>
@@ -458,7 +516,7 @@ function Formulario({ onSave, disabled = false }) {
                         </div>
                     </div>
 
-                            <div className="form-group checkbox-group">
+                    <div className="form-group checkbox-group">
                         <label>
                             <input
                                 type="checkbox"
@@ -478,7 +536,6 @@ function Formulario({ onSave, disabled = false }) {
                                 name="estrutura.material_parede"
                                 value={formData.estrutura.material_parede}
                                 onChange={handleChange}
-                                className="form-input"
                             >
                                 <option value="">Selecione</option>
                                 <option value="Tijolo">Tijolo</option>
@@ -496,7 +553,6 @@ function Formulario({ onSave, disabled = false }) {
                                 name="estrutura.material_piso"
                                 value={formData.estrutura.material_piso}
                                 onChange={handleChange}
-                                className="form-input"
                             >
                                 <option value="">Selecione</option>
                                 <option value="Cimento">Cimento</option>
@@ -514,7 +570,6 @@ function Formulario({ onSave, disabled = false }) {
                                 name="estrutura.material_cobertura"
                                 value={formData.estrutura.material_cobertura}
                                 onChange={handleChange}
-                                className="form-input"
                             >
                                 <option value="">Selecione</option>
                                 <option value="Telha">Telha</option>
@@ -536,7 +591,6 @@ function Formulario({ onSave, disabled = false }) {
                                 value={formData.estrutura.qtd_quartos}
                                 onChange={handleChange}
                                 min="0"
-                                className="form-input"
                             />
                         </div>
                         
@@ -549,7 +603,6 @@ function Formulario({ onSave, disabled = false }) {
                                 value={formData.estrutura.qtd_camas}
                                 onChange={handleChange}
                                 min="0"
-                                className="form-input"
                             />
                         </div>
                         
@@ -563,7 +616,6 @@ function Formulario({ onSave, disabled = false }) {
                                 onChange={handleChange}
                                 maxLength="100"
                                 placeholder="Ex: Beliche, Solteiro, Casal..."
-                                className="form-input"
                             />
                         </div>
                     </div>
@@ -619,7 +671,6 @@ function Formulario({ onSave, disabled = false }) {
                                 name="saneamento.como_escoa"
                                 value={formData.saneamento.como_escoa}
                                 onChange={handleChange}
-                                className="form-input"
                             >
                                 <option value="">Selecione</option>
                                 <option value="Rede de esgoto">Rede de esgoto</option>
@@ -636,7 +687,6 @@ function Formulario({ onSave, disabled = false }) {
                                 name="saneamento.dest_lixo"
                                 value={formData.saneamento.dest_lixo}
                                 onChange={handleChange}
-                                className="form-input"
                             >
                                 <option value="">Selecione</option>
                                 <option value="Coleta pública">Coleta pública</option>
@@ -655,7 +705,6 @@ function Formulario({ onSave, disabled = false }) {
                                 name="saneamento.bebe_agua"
                                 value={formData.saneamento.bebe_agua}
                                 onChange={handleChange}
-                                className="form-input"
                             >
                                 <option value="">Selecione</option>
                                 <option value="Filtrada">Filtrada</option>
@@ -666,16 +715,15 @@ function Formulario({ onSave, disabled = false }) {
                         </div>
                         
                         <div className="form-group">
-                            <label htmlFor="saneamento.trata_agua">Origem da Água:</label>
+                            <label htmlFor="saneamento.trata_agua">Origem/Tratamento da Água:</label>
                             <select
                                 id="saneamento.trata_agua"
                                 name="saneamento.trata_agua"
                                 value={formData.saneamento.trata_agua}
                                 onChange={handleChange}
-                                className="form-input"
                             >
                                 <option value="">Selecione</option>
-                                <option value="Fervida">Rede pública</option>
+                                <option value="Fervida">Fervida (ferve a água)</option>
                                 <option value="Coleta">Coleta de chuva</option>
                                 <option value="Cisterna">Cisterna</option>
                                 <option value="Poço">Poço</option>
@@ -684,14 +732,155 @@ function Formulario({ onSave, disabled = false }) {
                     </div>
                 </fieldset>
 
+                {/* Seção: Dados da Entrevista */}
+                <fieldset className="form-section">
+                    <legend>Dados da Entrevista</legend>
+                    
+                    <div className="form-row">
+                        <div className="form-group">
+                            <label htmlFor="entrevista.data_entrevista">Data da Entrevista: *</label>
+                            <input
+                                type="date"
+                                id="entrevista.data_entrevista"
+                                name="entrevista.data_entrevista"
+                                value={entrevistaData.data_entrevista}
+                                onChange={handleChange}
+                                required
+                            />
+                        </div>
+                        
+                        <div className="form-group">
+                            <label htmlFor="entrevista.entrevistado">Nome do Entrevistado:</label>
+                            <input
+                                type="text"
+                                id="entrevista.entrevistado"
+                                name="entrevista.entrevistado"
+                                value={entrevistaData.entrevistado}
+                                onChange={handleChange}
+                                maxLength="150"
+                                placeholder="Nome da pessoa entrevistada"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="form-group">
+                        <label htmlFor="entrevista.telefone_contato">Telefone de Contato:</label>
+                        <input
+                            type="tel"
+                            id="entrevista.telefone_contato"
+                            name="entrevista.telefone_contato"
+                            value={entrevistaData.telefone_contato}
+                            onChange={handleChange}
+                            maxLength="30"
+                            placeholder="(00) 00000-0000"
+                        />
+                    </div>
+
+                    <div className="form-group">
+                        <label htmlFor="entrevista.observacoes">Observações da Entrevista:</label>
+                        <textarea
+                            id="entrevista.observacoes"
+                            name="entrevista.observacoes"
+                            value={entrevistaData.observacoes}
+                            onChange={handleChange}
+                            rows="4"
+                            placeholder="Observações importantes da entrevista, demandas identificadas, encaminhamentos necessários..."
+                        />
+                    </div>
+                </fieldset>
+
+                {/* Resumo Final */}
+                <fieldset className="form-section resumo-final">
+                    <legend>📋 Resumo do Cadastro</legend>
+                    <div className="resumo-content">
+                        <div className="resumo-item">
+                            <strong>👥 Membros da Família:</strong> {membros.length} pessoa(s)
+                            {membros.length > 0 && (
+                                <ul className="lista-membros-resumo">
+                                    {membros.map((membro, index) => (
+                                        <li key={membro.temp_id || index}>
+                                            {membro.nome} ({membro.relacao || 'Sem relação definida'})
+                                            {membro.crianca_cepas?.ativa && <span className="cepas-tag">CEPAS</span>}
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
+                        
+                        <div className="resumo-item">
+                            <strong>🏠 Família:</strong> {formData.nome_familia || 'Não informado'}
+                        </div>
+                        
+                        <div className="resumo-item">
+                            <strong>📍 Endereço:</strong> {formData.endereco.rua ? 
+                                `${formData.endereco.rua}, ${formData.endereco.numero_casa || 'S/N'}` : 
+                                'Não informado'
+                            }
+                        </div>
+                        
+                        {membros.length === 0 && (
+                            <div className="alerta-membros">
+                                ⚠️ <strong>Atenção:</strong> Nenhum membro foi adicionado à família. 
+                                É <strong>altamente recomendado</strong> adicionar pelo menos um membro antes de finalizar o cadastro.
+                            </div>
+                        )}
+                        
+                        {/* Indicadores de seções preenchidas */}
+                        <div className="resumo-item">
+                            <strong>✅ Status das Seções:</strong>
+                            <ul className="status-secoes">
+                                <li className={formData.nome_familia ? 'preenchido' : 'vazio'}>
+                                    📋 Dados Básicos: {formData.nome_familia ? 'Preenchido' : 'Pendente'}
+                                </li>
+                                <li className={formData.endereco.rua ? 'preenchido' : 'vazio'}>
+                                    📍 Endereço: {formData.endereco.rua ? 'Preenchido' : 'Opcional'}
+                                </li>
+                                <li className={membros.length > 0 ? 'preenchido' : 'vazio'}>
+                                    👥 Membros: {membros.length} pessoa(s) {membros.length === 0 ? '(Recomendado adicionar)' : ''}
+                                </li>
+                                <li className={entrevistaData.entrevistado ? 'preenchido' : 'vazio'}>
+                                    🎤 Entrevista: {entrevistaData.entrevistado ? 'Preenchida' : 'Opcional'}
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </fieldset>
+
                 {/* Botão de Envio */}
                 <div className="form-actions">
+                    {/* Botão de debug - remover em produção */}
+                    <button 
+                        type="button" 
+                        className="btn-debug"
+                        onClick={() => {
+                            const dadosCompletos = {
+                                ...formData,
+                                membros: membros,
+                                entrevista: entrevistaData
+                            };
+                            console.log('=== DADOS COMPLETOS PARA DEBUG ===');
+                            console.log(JSON.stringify(dadosCompletos, null, 2));
+                            alert('Dados impressos no console do navegador (F12 > Console)');
+                        }}
+                        style={{
+                            backgroundColor: '#ffc107',
+                            color: '#000',
+                            marginRight: '10px',
+                            padding: '10px 20px',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        🔍 Debug - Ver Dados
+                    </button>
+                    
                     <button 
                         type="submit" 
-                        className="primary-btn"
+                        className="btn-submit"
                         disabled={disabled || isSubmitting}
                     >
-                        {isSubmitting ? 'Salvando...' : 'Salvar Cadastro Completo'}
+                        {isSubmitting ? '⏳ Salvando...' : '💾 Finalizar Cadastro da Família'}
                     </button>
                 </div>
             </form>
