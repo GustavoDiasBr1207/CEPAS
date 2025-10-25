@@ -14,6 +14,7 @@ const ListaFamilias = () => {
     const [editLoading, setEditLoading] = useState(false);
     const [filterText, setFilterText] = useState('');
     const [filterStatus, setFilterStatus] = useState('all');
+    const [filterField, setFilterField] = useState('all');
 
     const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:3001/api';
     const navigate = useNavigate();
@@ -186,11 +187,22 @@ const ListaFamilias = () => {
 
     // Filtragem local: texto e status
     const filteredFamilias = familias.filter((f) => {
-        // Texto: buscar em nome da família, responsável e endereço
+        // Texto: buscar em campos selecionados
         const q = filterText.trim().toLowerCase();
         if (q) {
-            const hay = `${f.NOME_FAMILIA || ''} ${f.NOME_RESPONSAVEL || ''} ${f.ENDERECO_COMPLETO || ''}`.toLowerCase();
-            if (!hay.includes(q)) return false;
+            let hay = '';
+            if (filterField === 'all') {
+                hay = `${f.NOME_FAMILIA || ''} ${f.NOME_RESPONSAVEL || ''} ${f.ENDERECO_COMPLETO || ''} ${f.STATUS_ENTREVISTA || ''} ${f.ENTREVISTADOR_NOME || f.ENTREVISTADOR || ''}`;
+            } else if (filterField === 'entrevista') {
+                hay = `${f.STATUS_ENTREVISTA || ''} ${f.ENTREVISTADOR_NOME || f.ENTREVISTADOR || ''}`;
+            } else if (filterField === 'nome') {
+                hay = `${f.NOME_FAMILIA || ''}`;
+            } else if (filterField === 'responsavel') {
+                hay = `${f.NOME_RESPONSAVEL || ''}`;
+            } else if (filterField === 'endereco') {
+                hay = `${f.ENDERECO_COMPLETO || ''}`;
+            }
+            if (!hay.toLowerCase().includes(q)) return false;
         }
 
         // Status: pendente = sem DATA_ENTREVISTA, realizada = com DATA_ENTREVISTA
@@ -220,20 +232,61 @@ const ListaFamilias = () => {
                     🔄 {loading ? 'Carregando...' : 'Recarregar Lista'}
                 </button>
                 {/* Filtros: busca por texto e status da entrevista */}
-                <div className="form-filters" style={{ display: 'flex', gap: '8px', marginLeft: '12px', alignItems: 'center' }}>
+                <div
+                    className="form-filters"
+                    style={{
+                        display: 'flex',
+                        gap: '8px',
+                        marginLeft: '12px',
+                        alignItems: 'center',
+                        background: '#fbfbfb',
+                        padding: '6px',
+                        borderRadius: '6px',
+                        border: '1px solid #eee'
+                    }}
+                >
                     <input
                         type="text"
-                        placeholder="Pesquisar família, responsável ou endereço..."
+                        placeholder={
+                            filterField === 'all' ? 'Pesquisar nome, responsável, endereço ou entrevista...' :
+                            filterField === 'nome' ? 'Pesquisar por nome da família...' :
+                            filterField === 'responsavel' ? 'Pesquisar por responsável...' :
+                            filterField === 'entrevista' ? 'Pesquisar por status/entrevistador...' :
+                            'Pesquisar por endereço...'
+                        }
                         value={filterText}
                         onChange={(e) => setFilterText(e.target.value)}
-                        style={{ padding: '6px 8px', borderRadius: '4px', border: '1px solid #ccc' }}
+                        style={{ padding: '8px 10px', borderRadius: '6px', border: '1px solid #ddd', minWidth: '260px' }}
+                        aria-label="Campo de pesquisa"
                     />
 
-                    <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={{ padding: '6px 8px', borderRadius: '4px' }}>
+                    <select value={filterField} onChange={(e) => setFilterField(e.target.value)} style={{ padding: '8px 10px', borderRadius: '6px', border: '1px solid #ddd' }} aria-label="Campo para pesquisar em">
+                        <option value="all">Pesquisar em: Todos</option>
+                        <option value="nome">Nome da família</option>
+                        <option value="responsavel">Responsável</option>
+                        <option value="endereco">Endereço</option>
+                        <option value="entrevista">Entrevista</option>
+                    </select>
+
+                    <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={{ padding: '8px 10px', borderRadius: '6px', border: '1px solid #ddd' }} aria-label="Filtro por status da entrevista">
                         <option value="all">Todos os status</option>
                         <option value="pendente">Entrevista pendente</option>
                         <option value="realizada">Entrevista realizada</option>
                     </select>
+
+                    <button
+                        onClick={() => { setFilterText(''); setFilterField('all'); setFilterStatus('all'); }}
+                        title="Limpar filtros"
+                        style={{
+                            padding: '8px 12px',
+                            borderRadius: '6px',
+                            border: '1px solid #ddd',
+                            background: '#fff',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        ✖ Limpar
+                    </button>
                 </div>
             </div>
 
