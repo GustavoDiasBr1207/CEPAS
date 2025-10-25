@@ -12,6 +12,8 @@ const ListaFamilias = () => {
     const [deletingId, setDeletingId] = useState(null);
     const [familiaEditando, setFamiliaEditando] = useState(null);
     const [editLoading, setEditLoading] = useState(false);
+    const [filterText, setFilterText] = useState('');
+    const [filterStatus, setFilterStatus] = useState('all');
 
     const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:3001/api';
     const navigate = useNavigate();
@@ -182,6 +184,25 @@ const ListaFamilias = () => {
         navigate(`/editar-familia/${idFamilia}`);
     };
 
+    // Filtragem local: texto e status
+    const filteredFamilias = familias.filter((f) => {
+        // Texto: buscar em nome da família, responsável e endereço
+        const q = filterText.trim().toLowerCase();
+        if (q) {
+            const hay = `${f.NOME_FAMILIA || ''} ${f.NOME_RESPONSAVEL || ''} ${f.ENDERECO_COMPLETO || ''}`.toLowerCase();
+            if (!hay.includes(q)) return false;
+        }
+
+        // Status: pendente = sem DATA_ENTREVISTA, realizada = com DATA_ENTREVISTA
+        if (filterStatus === 'pendente') {
+            if (f.DATA_ENTREVISTA) return false;
+        } else if (filterStatus === 'realizada') {
+            if (!f.DATA_ENTREVISTA) return false;
+        }
+
+        return true;
+    });
+
     return (
         <div className="formulario-container">
             <div className="formulario-header">
@@ -198,6 +219,22 @@ const ListaFamilias = () => {
                 >
                     🔄 {loading ? 'Carregando...' : 'Recarregar Lista'}
                 </button>
+                {/* Filtros: busca por texto e status da entrevista */}
+                <div className="form-filters" style={{ display: 'flex', gap: '8px', marginLeft: '12px', alignItems: 'center' }}>
+                    <input
+                        type="text"
+                        placeholder="Pesquisar família, responsável ou endereço..."
+                        value={filterText}
+                        onChange={(e) => setFilterText(e.target.value)}
+                        style={{ padding: '6px 8px', borderRadius: '4px', border: '1px solid #ccc' }}
+                    />
+
+                    <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={{ padding: '6px 8px', borderRadius: '4px' }}>
+                        <option value="all">Todos os status</option>
+                        <option value="pendente">Entrevista pendente</option>
+                        <option value="realizada">Entrevista realizada</option>
+                    </select>
+                </div>
             </div>
 
             {/* Mensagens de status */}
@@ -242,9 +279,17 @@ const ListaFamilias = () => {
                 </div>
             )}
 
-            {!loading && familias.length > 0 && (
+            {/* Se existem famílias, mas nenhuma corresponde aos filtros, mostramos mensagem específica */}
+            {!loading && familias.length > 0 && filteredFamilias.length === 0 && (
+                <div className="empty-state">
+                    <h3>🔎 Nenhuma família corresponde aos filtros</h3>
+                    <p>Altere o texto de busca ou o status para encontrar famílias.</p>
+                </div>
+            )}
+
+            {!loading && filteredFamilias.length > 0 && (
                 <div className="familias-grid">
-                    {familias.map((familia) => (
+                    {filteredFamilias.map((familia) => (
                         <div key={familia.ID_FAMILIA} className="familia-card">
                             <div className="familia-header">
                                 <h3>👨‍👩‍👧‍👦 {familia.NOME_FAMILIA}</h3>
@@ -253,7 +298,7 @@ const ListaFamilias = () => {
 
                             <div className="familia-info">
                                 <div className="info-row">
-                                    <strong>� Responsável:</strong> 
+                                    <strong>Responsável:</strong> 
                                     <span>{familia.NOME_RESPONSAVEL || 'Não informado'}</span>
                                 </div>
 
@@ -299,7 +344,7 @@ const ListaFamilias = () => {
                                 </div>
 
                                 <div className="info-row">
-                                    <strong>� Benefício Social:</strong> 
+                                    <strong>Benefício Social:</strong> 
                                     <span style={{ 
                                         color: familia.RECEBE_BENEFICIO ? '#27ae60' : '#e74c3c',
                                         fontWeight: 'bold'
@@ -309,7 +354,7 @@ const ListaFamilias = () => {
                                 </div>
 
                                 <div className="info-row">
-                                    <strong>� Plano de Saúde:</strong> 
+                                    <strong>Plano de Saúde:</strong> 
                                     <span style={{ 
                                         color: familia.POSSUI_PLANO_SAUDE ? '#27ae60' : '#e74c3c'
                                     }}>
