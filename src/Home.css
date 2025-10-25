@@ -1,0 +1,125 @@
+/* Styles for Home cards (simple, no Tailwind required) */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
+.cards-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+}
+
+@media (min-width: 640px) {
+  .cards-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (min-width: 992px) {
+  .cards-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+.card-link { text-decoration: none; color: inherit; }
+
+.card {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 20px;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  transition: transform 180ms ease, box-shadow 180ms ease;
+  box-shadow: 0 6px 18px rgba(12, 18, 37, 0.03);
+  /* margin to create visual space on the left and below each card */
+  margin-left: 18px;
+  margin-bottom: 18px;
+}
+
+.card:hover {
+  transform: translateY(-6px) scale(1.01);
+  box-shadow: 0 14px 36px rgba(12, 18, 37, 0.12);
+}
+
+.card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.card-icon {
+  height: 48px;
+  width: 48px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 20px;
+}
+
+.card-icon-large {
+  height: 72px;
+  width: 72px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 26px;
+  margin: 18px auto 6px auto;
+  box-shadow: 0 6px 18px rgba(12, 18, 37, 0.06);
+}
+
+.card-go {
+  color: #6b7280; /* gray-500 */
+  font-size: 14px;
+}
+
+.card-title {
+  margin-top: 12px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a; /* gray-900 */
+}
+
+.card-desc {
+  margin-top: 8px;
+  color: #475569; /* gray-600 */
+  font-size: 14px;
+}
+
+/* small polish for header */
+header h1 { line-height: 1.05; }
+
+/* make icons from lucide slightly larger */
+.card-icon svg { height: 20px; width: 20px; }
+.card-icon-large svg { height: 28px; width: 28px; }
+
+/* space cards lower so hover doesn't overlap header text */
+.cards-section { padding-top: 40px; /* push cards down from header */
+  /* add left padding so the whole card grid shifts right a bit */
+  padding-left: 18px;
+}
+
+@media (min-width: 992px) {
+  .cards-section { padding-top: 80px; }
+}
+
+/* Top navigation boxed links (spacing, light green background, hover movement) */
+.top-nav-container { gap: 10px; }
+.top-nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(236, 253, 245, 0.9); /* very light green */
+  border: 1px solid rgba(16, 185, 129, 0.12);
+  color: #065f46; /* deep green text */
+  transform: translateY(0);
+  transition: transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
+  text-decoration: none !important; /* remove underline */
+  font-family: 'Poppins', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+  font-weight: 600;
+}
+.top-nav-link:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 20px rgba(16, 185, 129, 0.08);
+  background: rgba(220, 252, 231, 0.95); /* slightly stronger green on hover */
+  text-decoration: none !important;
+}
+
+/* ensure anchors do not show underlines in any state */
+.top-nav-link, .top-nav-link:visited, .top-nav-link:active, .top-nav-link:focus { text-decoration: none !important; }

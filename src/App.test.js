@@ -1,8 +1,3 @@
-import { render, screen } from '@testing-library/react';
-import App from './App';
-
-test('renders learn react link', () => {
-  render(<App />);
-  const linkElement = screen.getByText(/learn react/i);
-  expect(linkElement).toBeInTheDocument();
-});
+// Test disabled by user request.
+// Kept a skipped placeholder test so the test runner doesn't fail with "must contain at least one test".
+test.skip('placeholder - tests disabled', () => {});
