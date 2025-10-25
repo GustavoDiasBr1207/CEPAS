@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { validateCompleteForm, formatErrorMessages } from '../utils/validationHelpers';
+import { getMonitors } from '../services/cepasService';
 import MembrosList from './MembrosList';
 import './Formulario.css';
 
@@ -66,10 +67,12 @@ function Formulario({ onSave, disabled = false, dadosIniciais = null, modoEdicao
         data_entrevista: new Date().toISOString().split('T')[0],
         entrevistado: '',
         telefone_contato: '',
-        observacoes: ''
+        observacoes: '',
+        entrevistador_id: '' // ID do monitor que realizou a entrevista
     });
 
     const [areas, setAreas] = useState([]);
+    const [monitors, setMonitors] = useState([]);
     const [validationErrors, setValidationErrors] = useState([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -87,6 +90,26 @@ function Formulario({ onSave, disabled = false, dadosIniciais = null, modoEdicao
             }
         };
         fetchAreas();
+        // fetch monitors for entrevistador select
+        const fetchMonitors = async () => {
+            try {
+                const data = await getMonitors();
+                // Normalize possible response shapes:
+                // - Array
+                // - { data: [...] }
+                // - { value: [...] } (used by some backend helpers)
+                // - other single object
+                let list = [];
+                if (Array.isArray(data)) list = data;
+                else if (data && Array.isArray(data.data)) list = data.data;
+                else if (data && Array.isArray(data.value)) list = data.value;
+                else if (data) list = [data];
+                setMonitors(list || []);
+            } catch (err) {
+                console.error('Erro ao buscar monitores:', err);
+            }
+        };
+        fetchMonitors();
     }, []);
 
     // Carregar dados iniciais quando em modo edição
@@ -118,7 +141,25 @@ function Formulario({ onSave, disabled = false, dadosIniciais = null, modoEdicao
 
             // Atualizar entrevista
             if (dadosIniciais.entrevista) {
-                setEntrevistaData(dadosIniciais.entrevista);
+                // normalize entrevistador id if present (support multiple possible field names)
+                const ente = { ...dadosIniciais.entrevista };
+                if (ente.entrevistador_id === undefined || ente.entrevistador_id === null) {
+                    // backend might return different keys: ID_MONITOR, id_monitor, ENTREVISTADOR, entrevistador
+                    ente.entrevistador_id = ente.ID_MONITOR || ente.id_monitor || ente.ENTREVISTADOR || ente.entrevistador || ente.entrevistador_id || '';
+                }
+                // coerce to string so it matches the option values
+                ente.entrevistador_id = ente.entrevistador_id !== undefined && ente.entrevistador_id !== null && String(ente.entrevistador_id).trim() !== '' ? String(ente.entrevistador_id) : '';
+                // also accept entrevistador_nome if provided
+                if (!ente.entrevistador_nome) {
+                    ente.entrevistador_nome = ente.ENTREVISTADOR_NOME || ente.entrevistador_nome || '';
+                }
+                // ensure date field is in yyyy-mm-dd string form
+                if (ente.data_entrevista && !(ente.data_entrevista instanceof Date)) {
+                    // backend returns yyyy-mm-dd already, leave as is; otherwise attempt to normalize
+                    const d = new Date(ente.data_entrevista);
+                    if (!isNaN(d)) ente.data_entrevista = d.toISOString().split('T')[0];
+                }
+                setEntrevistaData(ente);
             }
         }
     }, [dadosIniciais, modoEdicao]);
@@ -205,6 +246,12 @@ function Formulario({ onSave, disabled = false, dadosIniciais = null, modoEdicao
             // Dados da entrevista
             entrevista: entrevistaData
         };
+
+        // normalize entrevistador_id to number if present
+        if (dadosParaEnvio.entrevista && dadosParaEnvio.entrevista.entrevistador_id) {
+            const num = Number(dadosParaEnvio.entrevista.entrevistador_id);
+            dadosParaEnvio.entrevista.entrevistador_id = isNaN(num) ? dadosParaEnvio.entrevista.entrevistador_id : num;
+        }
 
         onSave(dadosParaEnvio);
         setIsSubmitting(false);
@@ -763,6 +810,25 @@ function Formulario({ onSave, disabled = false, dadosIniciais = null, modoEdicao
                         </div>
                     </div>
 
+                        <div className="form-group">
+                            <label htmlFor="entrevista.entrevistador_id">Entrevistador (Monitor):</label>
+                            <select
+                                id="entrevista.entrevistador_id"
+                                name="entrevista.entrevistador_id"
+                                value={entrevistaData.entrevistador_id}
+                                onChange={handleChange}
+                            >
+                                <option value="">Selecione o monitor que realizou a entrevista</option>
+                                {monitors.map(mon => {
+                                    const id = mon.ID_MONITOR || mon.ID || mon.id_monitor;
+                                    const nome = mon.NOME || mon.nome || mon.NOME_MONITOR || mon.NOME_RESPONSAVEL;
+                                    return (
+                                        <option key={String(id)} value={String(id)}>{nome || `Monitor ${id}`}</option>
+                                    );
+                                })}
+                            </select>
+                        </div>
+
                     <div className="form-group">
                         <label htmlFor="entrevista.telefone_contato">Telefone de Contato:</label>
                         <input
@@ -817,6 +883,15 @@ function Formulario({ onSave, disabled = false, dadosIniciais = null, modoEdicao
                                 'Não informado'
                             }
                         </div>
+                        {entrevistaData.entrevistador_id && (
+                            <div className="resumo-item">
+                                <strong>🎤 Entrevistador (Monitor):</strong> {(() => {
+                                    const id = String(entrevistaData.entrevistador_id);
+                                    const mon = monitors.find(m => String(m.ID_MONITOR || m.ID || m.id_monitor) === id);
+                                    return mon ? (mon.NOME || mon.nome || `Monitor ${id}`) : `Monitor ID ${id}`;
+                                })()}
+                            </div>
+                        )}
                         
                         {membros.length === 0 && (
                             <div className="alerta-membros">

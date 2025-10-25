@@ -164,6 +164,20 @@ const ListaFamilias = () => {
         return `R$ ${parseFloat(renda).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
     };
 
+    // Tenta extrair o nome do entrevistador do campo STATUS_ENTREVISTA quando
+    // ENTREVISTADOR_NOME não estiver presente (fallback para respostas antigas)
+    const extrairEntrevistadorDeStatus = (status) => {
+        if (!status || typeof status !== 'string') return null;
+        // O backend monta STATUS_ENTREVISTA como "✅ dd/mm/yyyy - entrevistado - entrevistador"
+        // Podemos tentar capturar o último segmento após ' - '
+        const parts = status.split(' - ').map(p => p.trim()).filter(Boolean);
+        if (parts.length >= 2) {
+            // último segmento é provavelmente o entrevistador
+            return parts[parts.length - 1];
+        }
+        return null;
+    };
+
     const handleEditarClick = (idFamilia) => {
         navigate(`/editar-familia/${idFamilia}`);
     };
@@ -247,6 +261,24 @@ const ListaFamilias = () => {
                                     <strong>📞 Contato:</strong> 
                                     <span>{familia.TELEFONE_CONTATO || familia.CONTATO || 'Não informado'}</span>
                                 </div>
+
+                                {/* Entrevistador (monitor) explícito - renderiza somente se houver dado */}
+                                {(() => {
+                                    // Preferência: ENTREVISTADOR_NOME (campo explícito)
+                                    const entrevistadorExpl = familia.ENTREVISTADOR_NOME || familia.ENTREVISTADOR || null;
+                                    // Fallback: tentar extrair do STATUS_ENTREVISTA
+                                    const entrevistadorFbd = entrevistadorExpl ? null : extrairEntrevistadorDeStatus(familia.STATUS_ENTREVISTA || familia.STATUS_ENTREVISTA);
+                                    const entrevistadorFinal = entrevistadorExpl || entrevistadorFbd;
+                                    if (entrevistadorFinal) {
+                                        return (
+                                            <div className="info-row">
+                                                <strong>🎤 Entrevistador:</strong>
+                                                <span>{entrevistadorFinal}</span>
+                                            </div>
+                                        );
+                                    }
+                                    return null;
+                                })()}
 
                                 <div className="info-row">
                                     <strong>🎯 Crianças CEPAS:</strong> 

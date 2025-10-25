@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useParams, Navigate, Link } from 'react-router-dom';
 // Importa ícones necessários para o componente Consulta e Cadastro
-import { Search, Loader, Zap, AlertTriangle, CheckCircle, Save, Clipboard, User } from 'lucide-react';
+import { Search, Loader, Zap, AlertTriangle, CheckCircle, Save, Clipboard, User, Sun, Moon } from 'lucide-react';
 import './Home.css';
 
 // Importa os novos componentes
@@ -304,22 +304,49 @@ const Nav = () => {
         { name: '📋 Lista Famílias', path: '/lista-familias' },
     // Testes do sistema removidos
     ];
+    // Theme toggle state (persisted)
+    const [theme, setTheme] = React.useState(() => {
+        try {
+            return localStorage.getItem('cepas_theme') || 'light';
+        } catch (e) {
+            return 'light';
+        }
+    });
+
+    React.useEffect(() => {
+        try {
+            if (theme === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+            else document.documentElement.removeAttribute('data-theme');
+            localStorage.setItem('cepas_theme', theme);
+        } catch (e) {
+            // ignore storage errors
+        }
+    }, [theme]);
+
+    const toggleTheme = () => setTheme(t => (t === 'dark' ? 'light' : 'dark'));
+
     return (
         <header className="bg-white shadow-lg sticky top-0 z-10">
             <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
                 <div className="text-2xl font-black text-blue-800">
                     CEPAS
                 </div>
-                <div className="flex space-x-4 top-nav-container">
-                    {navItems.map((item) => (
-                        <Link
-                            key={item.path}
-                            to={item.path}
-                            className={`top-nav-link px-3 py-2 text-sm font-medium rounded-md transition duration-200 text-gray-700`}
-                        >
-                            {item.name}
-                        </Link>
-                    ))}
+                <div className="flex items-center gap-3">
+                    <div className="flex space-x-4 top-nav-container">
+                        {navItems.map((item) => (
+                            <Link
+                                key={item.path}
+                                to={item.path}
+                                className={`top-nav-link px-3 py-2 text-sm font-medium rounded-md transition duration-200 text-gray-700`}
+                            >
+                                {item.name}
+                            </Link>
+                        ))}
+                    </div>
+
+                    <button title="Alternar modo claro/escuro" onClick={toggleTheme} className="top-nav-toggle" style={{ marginLeft: 8 }}>
+                        {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+                    </button>
                 </div>
             </nav>
         </header>

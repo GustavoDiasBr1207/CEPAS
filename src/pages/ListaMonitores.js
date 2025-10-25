@@ -28,7 +28,8 @@ const ListaMonitores = () => {
             const list = Array.isArray(data) ? data : (data.data || data);
             const arr = list || [];
             setMonitores(arr);
-            setSuccess(`${arr.length} monitor(es) encontrado(s)`);
+            // don't set success here to the total count — keep success for operation messages
+            setSuccess('');
         } catch (err) {
             console.error('Erro ao carregar monitores:', err);
             setError(`Erro ao carregar monitores: ${err.message}`);
@@ -148,6 +149,15 @@ const ListaMonitores = () => {
 
             {!loading && monitores.length > 0 && (
                 <div>
+                    {/* show filtered count and dataset info */}
+                    {(() => {
+                        const q = search.trim();
+                        return (
+                            <div style={{ textAlign: 'center', fontWeight: 600, margin: '10px 0 18px 0', color: '#2c3e50' }}>
+                                {q ? `Mostrando ${filtered.length} de ${monitores.length} (filtro: "${search}")` : `${filtered.length} monitor(es) encontrado(s)`}
+                            </div>
+                        );
+                    })()}
                     <div className="familias-grid">
                         {paged.map((m) => {
                         const id = m.ID_MONITOR || m.ID || m.id_monitor;
