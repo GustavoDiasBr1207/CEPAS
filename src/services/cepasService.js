@@ -167,3 +167,93 @@ export async function deleteFamilia(id) {
         throw error;
     }
 }
+
+// -------------------------------------------------------------------
+// Serviços para Monitor
+// -------------------------------------------------------------------
+
+/**
+ * Cria um novo monitor (POST /api/dados/Monitor)
+ * @param {Object} monitorData - { nome, telefone, email, observacao }
+ */
+export async function createMonitor(monitorData) {
+    const url = `${API_BASE_URL}/dados/Monitor`;
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-user': 'usuario_sistema'
+            },
+            body: JSON.stringify(monitorData)
+        });
+
+        if (!response.ok) {
+            const errorBody = await response.text().catch(() => 'Erro desconhecido');
+            throw new Error(`Erro ${response.status}: ${errorBody}`);
+        }
+
+        return response.json();
+    } catch (error) {
+        console.error('Erro no serviço createMonitor:', error);
+        throw error;
+    }
+}
+
+/**
+ * Busca monitores (GET /api/dados/Monitor)
+ */
+export async function getMonitors() {
+    const url = `${API_BASE_URL}/dados/Monitor`;
+    try {
+        const response = await fetch(url, { method: 'GET', headers: { 'Content-Type': 'application/json' } });
+        if (!response.ok) {
+            const errorBody = await response.text().catch(() => 'Erro desconhecido');
+            throw new Error(`Erro ${response.status}: ${errorBody}`);
+        }
+        return response.json();
+    } catch (error) {
+        console.error('Erro no serviço getMonitors:', error);
+        throw error;
+    }
+}
+
+/**
+ * Atualiza monitor (PUT /api/dados/Monitor/:id)
+ */
+export async function updateMonitor(id, monitorData) {
+    const url = `${API_BASE_URL}/dados/Monitor/${id}`;
+    try {
+        const response = await fetch(url, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(monitorData)
+        });
+        if (!response.ok) {
+            const errorBody = await response.text().catch(() => 'Erro desconhecido');
+            throw new Error(`Erro ${response.status}: ${errorBody}`);
+        }
+        return response.json();
+    } catch (error) {
+        console.error('Erro no serviço updateMonitor:', error);
+        throw error;
+    }
+}
+
+/**
+ * Deleta monitor (DELETE /api/dados/Monitor/:id)
+ */
+export async function deleteMonitor(id) {
+    const url = `${API_BASE_URL}/dados/Monitor/${id}`;
+    try {
+        const response = await fetch(url, { method: 'DELETE' });
+        if (!response.ok) {
+            const errorBody = await response.text().catch(() => 'Erro desconhecido');
+            throw new Error(`Erro ${response.status}: ${errorBody}`);
+        }
+        return { success: true };
+    } catch (error) {
+        console.error('Erro no serviço deleteMonitor:', error);
+        throw error;
+    }
+}

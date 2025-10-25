@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useParams, Navigate, Link } from 'react-router-dom';
 // Importa ícones necessários para o componente Consulta e Cadastro
-import { Search, Loader, Zap, AlertTriangle, CheckCircle, Save, Clipboard } from 'lucide-react';
+import { Search, Loader, Zap, AlertTriangle, CheckCircle, Save, Clipboard, User } from 'lucide-react';
 import './Home.css';
 
 // Importa os novos componentes
 import CadastroFamilia from './pages/CadastroFamilia';
 import ListaFamilias from './pages/ListaFamilias';
 import EditarFamilia from './pages/EditarFamilia';
+import CadastroMonitor from './pages/CadastroMonitor';
+import ListaMonitores from './pages/ListaMonitores';
 
 // URL base do seu backend (o servidor Express rodará na porta 3001)
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:3001/api'; 
@@ -222,6 +224,20 @@ const Home = ({ pingStatus }) => {
             icon: <Search />
         },
         {
+            title: 'Cadastro de Monitores',
+            desc: 'Cadastre monitores responsáveis pelas entrevistas e monitoramento.',
+            to: '/cadastro-monitor',
+            color: '#059669',
+            icon: <User />
+        },
+        {
+            title: 'Lista de Monitores',
+            desc: 'Veja, edite ou exclua monitores cadastrados.',
+            to: '/monitores',
+            color: '#0ea5a4',
+            icon: <User />
+        },
+        {
             title: 'Cadastro Completo',
             desc: 'Cadastre famílias com endereço, membros e dados complementares.',
             to: '/cadastro',
@@ -283,6 +299,8 @@ const Nav = () => {
         { name: 'Home', path: '/' },
         { name: 'Consulta Geral', path: '/consulta' },
         { name: 'Cadastro Completo', path: '/cadastro' },
+        { name: 'Cadastro Monitores', path: '/cadastro-monitor' },
+        { name: 'Lista de Monitores', path: '/monitores' },
         { name: '📋 Lista Famílias', path: '/lista-familias' },
     // Testes do sistema removidos
     ];
@@ -402,6 +420,8 @@ const App = () => {
                     <Route path="/" element={<Home setPage={() => {}} pingStatus={pingStatus} />} />
                     <Route path="/consulta" element={<ConsultaGeral setPage={() => {}} />} />
                     <Route path="/cadastro" element={<CadastroFamilia />} />
+                    <Route path="/cadastro-monitor" element={<CadastroMonitor />} />
+                    <Route path="/monitores" element={<ListaMonitores />} />
                     <Route path="/lista-familias" element={<ListaFamilias />} />
                     <Route path="/editar-familia/:id" element={<EditarFamiliaWrapper />} />
                     <Route path="*" element={<Navigate to="/" />} />
