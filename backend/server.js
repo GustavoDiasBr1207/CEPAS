@@ -3,22 +3,35 @@ console.log('🚀 Iniciando backend...');
 
 const express = require('express');
 const cors = require('cors');
-const apiRoutes = require('./routes/apiRoutes'); // <--- Importa as rotas do novo arquivo
-// Nenhuma necessidade de importar 'oracledb', 'path', ou 'fs' aqui
+const apiRoutes = require('./routes/apiRoutes');
+const authRoutes = require('./routes/authRoutes');
 
 // Importa o módulo Oracle (apenas para garantir a inicialização)
-// O arquivo oracle.js é importado indiretamente via apiRoutes, 
-// mas você pode chamá-lo diretamente aqui para garantir a inicialização se preferir:
 require('./oracle'); 
 
 const app = express();
-app.use(cors());
+
+// Middleware para confiança em proxies (para capturar IP real)
+app.set('trust proxy', true);
+
+// CORS configurado para aceitar múltiplas origens
+app.use(cors({
+    origin: [
+        process.env.FRONTEND_URL || 'http://localhost:3000',
+        'http://localhost:80',
+        'http://localhost',
+        'http://127.0.0.1:80',
+        'http://127.0.0.1'
+    ],
+    credentials: true
+}));
+
 app.use(express.json()); // Middleware essencial para receber dados JSON no body
 
+// Aplica as rotas de autenticação
+app.use('/api/auth', authRoutes);
 
-// Aplica as rotas com um prefixo '/api'
-// Todos os seus endpoints agora começarão com /api
-// Ex: http://localhost:3001/api/ping
+// Aplica as rotas gerais com um prefixo '/api'
 app.use('/api', apiRoutes); 
 
 const PORT = process.env.PORT || 3001;

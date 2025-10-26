@@ -8,6 +8,8 @@ const {
     updateRecord, 
     deleteRecord 
 } = require('../oracle');
+// Importa middleware de autenticação
+const { authenticateToken, authorize } = require('../middleware/auth');
 const router = express.Router();
 
 // Middleware para garantir que o corpo da requisição seja lido como JSON
@@ -57,45 +59,21 @@ router.get('/ping', async (req, res) => {
 });
 
 // ------------------------------------
-// ROTAS DE AUTENTICAÇÃO (MOCK)
-// ------------------------------------
-
-/**
- * Rota /login mock para demonstração. Deve ser substituída por uma lógica real.
- */
-router.post('/login', async (req, res) => {
-    const { username, password } = req.body;
-
-    // TODO: Implementar a checagem real no Oracle (e.g., tabela de usuários)
-    if (username === 'admin' && password === 'cepas2025') { 
-        // Em um projeto real, você retornaria um JWT token
-        const token = 'CEPAS-TOKEN-ADMIN-XYZ';
-        return res.status(200).json({ 
-            success: true, 
-            message: 'Login realizado com sucesso!',
-            token: token,
-            user: { username: 'admin', role: 'admin' }
-        });
-    } else {
-        return res.status(401).json({ success: false, message: 'Credenciais inválidas.' });
-    }
-});
-
-// ------------------------------------
 // ROTAS CRUD GENÉRICAS
 // ------------------------------------
 
 /**
  * Rota especial para criação completa de família com todas as tabelas relacionadas
  * Endpoint: /api/familia-completa (POST)
+ * Requer autenticação: monitor, coordenador ou admin
  */
-router.post('/familia-completa', async (req, res) => {
+router.post('/familia-completa', authenticateToken, authorize('monitor', 'coordenador', 'admin'), async (req, res) => {
     console.log('=== RECEBIDA REQUISIÇÃO FAMÍLIA COMPLETA ===');
     console.log('Headers:', req.headers);
     console.log('Body recebido:', JSON.stringify(req.body, null, 2));
     
     const dadosCompletos = req.body;
-    const usuario = req.headers['x-user'] || 'sistema_api';
+    const usuario = req.user ? req.user.username : 'sistema_api';
     
     try {
         // Validações básicas
@@ -383,8 +361,9 @@ router.get('/dados/:tableName', async (req, res) => {
 
 /**
  * Endpoint: /api/dados/:tableName (POST - Criação)
+ * Requer autenticação: monitor, coordenador ou admin
  */
-router.post('/dados/:tableName', async (req, res) => {
+router.post('/dados/:tableName', authenticateToken, authorize('monitor', 'coordenador', 'admin'), async (req, res) => {
     const tableName = req.params.tableName;
     const newRecord = req.body; 
 
@@ -397,7 +376,7 @@ router.post('/dados/:tableName', async (req, res) => {
 
     // Adiciona campos de auditoria somente nas tabelas que possuem a coluna
     if (tablesWithUsuarioResponsavel.has(tableName)) {
-        newRecord.usuario_responsavel = req.headers['x-user'] || 'sistema_api';
+        newRecord.usuario_responsavel = req.user ? req.user.username : 'sistema_api';
     }
     
     try {
@@ -414,8 +393,9 @@ router.post('/dados/:tableName', async (req, res) => {
 
 /**
  * Endpoint: /api/dados/:tableName/:id (PUT - Atualização)
+ * Requer autenticação: monitor, coordenador ou admin
  */
-router.put('/dados/:tableName/:id', async (req, res) => {
+router.put('/dados/:tableName/:id', authenticateToken, authorize('monitor', 'coordenador', 'admin'), async (req, res) => {
     const { tableName, id } = req.params;
     const updates = req.body; 
 
@@ -428,7 +408,7 @@ router.put('/dados/:tableName/:id', async (req, res) => {
 
     // Adiciona campos de auditoria somente nas tabelas que possuem a coluna
     if (tablesWithUsuarioResponsavel.has(tableName)) {
-        updates.usuario_responsavel = req.headers['x-user'] || 'sistema_api';
+        updates.usuario_responsavel = req.user ? req.user.username : 'sistema_api';
     }
 
     try {
@@ -450,8 +430,9 @@ router.put('/dados/:tableName/:id', async (req, res) => {
 
 /**
  * Endpoint: /api/dados/:tableName/:id (DELETE - Exclusão)
+ * Requer autenticação: coordenador ou admin
  */
-router.delete('/dados/:tableName/:id', async (req, res) => {
+router.delete('/dados/:tableName/:id', authenticateToken, authorize('coordenador', 'admin'), async (req, res) => {
     const { tableName, id } = req.params;
 
     if (!allowedTables.includes(tableName)) {
@@ -699,8 +680,9 @@ router.get('/familia/:id', async (req, res) => {
 
 /**
  * Endpoint: PUT /api/familia/:id - Atualiza dados completos de uma família
+ * Requer autenticação: monitor, coordenador ou admin
  */
-router.put('/familia/:id', async (req, res) => {
+router.put('/familia/:id', authenticateToken, authorize('monitor', 'coordenador', 'admin'), async (req, res) => {
     const { id } = req.params;
     const dadosCompletos = req.body;
     
@@ -720,7 +702,7 @@ router.put('/familia/:id', async (req, res) => {
     }
     
     try {
-        const usuario = req.headers['x-user'] || 'sistema_api';
+        const usuario = req.user ? req.user.username : 'sistema_api';
         // Verifica se a família existe
         const familiaExiste = await fetchTableData('Familia', `SELECT id_familia FROM Familia WHERE id_familia = :id`, { id });
         
@@ -1250,8 +1232,9 @@ router.get('/familias', async (req, res) => {
 
 /**
  * Endpoint: DELETE /api/familia/:id - Deleta uma família e todos os dados relacionados
+ * Requer autenticação: coordenador ou admin
  */
-router.delete('/familia/:id', async (req, res) => {
+router.delete('/familia/:id', authenticateToken, authorize('coordenador', 'admin'), async (req, res) => {
     const { id } = req.params;
     
     console.log(`🗑️ Recebida requisição para deletar família ID: ${id}`);
