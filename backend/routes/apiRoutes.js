@@ -1069,6 +1069,10 @@ router.get('/familias', async (req, res) => {
                     e.rua,
                     e.numero_casa,
                     e.complemento,
+                    e.id_area AS ENDERECO_ID_AREA,
+                    a.id_area AS AREA_ID,
+                    a.nome_area AS AREA_NOME,
+                    a.descricao AS AREA_DESCRICAO,
                     ent.data_entrevista,
                     ent.entrevistado,
                     ent.telefone_contato,
@@ -1076,6 +1080,7 @@ router.get('/familias', async (req, res) => {
                     m.nome AS ENTREVISTADOR_NOME
                 FROM Familia f
                 LEFT JOIN Endereco e ON f.id_familia = e.id_familia
+                LEFT JOIN Area a ON e.id_area = a.id_area
                 LEFT JOIN (
                     SELECT t.*
                     FROM (
