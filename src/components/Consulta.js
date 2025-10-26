@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../hooks/useAuth';
 // Importa ícones necessários para o componente Consulta
 import { Search, Loader, Zap, AlertTriangle, CheckCircle } from 'lucide-react';
 
@@ -14,6 +15,7 @@ const API_BASE_URL = 'http://localhost:3001/api';
  * Permite ao usuário buscar dados de qualquer tabela permitida.
  */
 const ConsultaGeral = ({ setPage }) => {
+    const { makeAuthenticatedRequest } = useAuth();
     // Estado para a consulta
     const [tableName, setTableName] = useState('');
     const [data, setData] = useState([]);
@@ -36,17 +38,8 @@ const ConsultaGeral = ({ setPage }) => {
         setStatus(`Conectando ao backend e consultando a tabela ${tableName}...`);
 
         try {
-            // Rota CORRIGIDA para /api/dados/:tableName (usando o global API_BASE_URL)
-            const url = `${API_BASE_URL}/dados/${tableName}`;
-            const response = await fetch(url);
-
-            if (!response.ok) {
-                // Tenta ler o erro do corpo da resposta, que pode ser HTML ou texto.
-                const errorText = await response.text(); 
-                throw new Error(`Erro ${response.status}: ${errorText.substring(0, 100)}...`);
-            }
-
-            const jsonData = await response.json();
+            // Usar authenticated request
+            const jsonData = await makeAuthenticatedRequest(`/dados/${tableName}`);
 
             if (jsonData.length === 0) {
                 setStatus("⚠️ Nenhum dado encontrado.");
@@ -305,6 +298,7 @@ const Nav = ({ currentPage, setPage }) => {
 // ------------------------------------
 
 const App = () => {
+    const { makeAuthenticatedRequest } = useAuth();
     // Estado para gerenciar a página atual
     const [currentPage, setCurrentPage] = useState('home');
     // Estado para exibir o status do backend
@@ -313,9 +307,8 @@ const App = () => {
     // Função para verificar o status do backend
     const checkBackendStatus = async () => {
         try {
-            const response = await fetch(`${API_BASE_URL}/ping`);
-            const text = await response.text();
-            setPingStatus(text);
+            const response = await makeAuthenticatedRequest('/ping');
+            setPingStatus(response?.message || 'Backend conectado');
         } catch (error) {
             console.error("Erro ao conectar com o backend:", error);
             setPingStatus('❌ Backend indisponível (Erro de rede/CORS)');

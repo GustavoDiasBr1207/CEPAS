@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
 import { createMonitor } from '../services/cepasService';
 import './ListaFamilias.css'; // reuse existing page styles for a consistent look
 
 const CadastroMonitor = () => {
+    const { makeAuthenticatedRequest } = useAuth();
     const [nome, setNome] = useState('');
     const [telefone, setTelefone] = useState('');
     const [email, setEmail] = useState('');
@@ -16,15 +18,14 @@ const CadastroMonitor = () => {
     useEffect(() => {
         const check = async () => {
             try {
-                const pingUrl = `${process.env.REACT_APP_API_BASE_URL || 'http://localhost:3001/api'}/ping`;
-                const res = await fetch(pingUrl);
-                setConnectionStatus(res.ok ? 'connected' : 'error');
+                const res = await makeAuthenticatedRequest('/ping');
+                setConnectionStatus((res && res.status !== undefined) ? (res.ok ? 'connected' : 'error') : 'connected');
             } catch (e) {
                 setConnectionStatus('error');
             }
         };
         check();
-    }, []);
+    }, [makeAuthenticatedRequest]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();

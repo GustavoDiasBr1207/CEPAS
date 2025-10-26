@@ -10,7 +10,16 @@ const REFRESH_TOKEN_EXPIRES_IN = 7 * 24 * 60 * 60 * 1000; // 7 dias em ms
  * Middleware para verificar token JWT
  */
 const authenticateToken = async (req, res, next) => {
+    if (req.method === 'OPTIONS') {
+        return next();
+    }
+
     const authHeader = req.headers['authorization'];
+    // Debug: log minimal auth header info (do NOT log full token for security)
+    try {
+        const preview = authHeader ? String(authHeader).slice(0, 20) + '...' : 'undefined';
+        console.log(`[auth] ${req.method} ${req.originalUrl} | Authorization present: ${!!authHeader} preview: ${preview}`);
+    } catch (_) {}
     const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
     if (!token) {

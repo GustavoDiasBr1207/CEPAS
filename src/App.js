@@ -55,15 +55,7 @@ const ConsultaGeral = ({ setPage }) => {
 
         try {
             // Rota CORRIGIDA para /api/dados/:tableName usando autenticação
-            const response = await makeAuthenticatedRequest(`/dados/${tableName}`);
-
-            if (!response.ok) {
-                // Tenta ler o erro do corpo da resposta, que pode ser HTML ou texto.
-                const errorText = await response.text(); 
-                throw new Error(`Erro ${response.status}: ${errorText.substring(0, 100)}...`);
-            }
-
-            const jsonData = await response.json();
+            const jsonData = await makeAuthenticatedRequest(`/dados/${tableName}`);
 
             if (jsonData.length === 0) {
                 setStatus("⚠️ Nenhum dado encontrado.");
@@ -314,7 +306,7 @@ const Home = ({ pingStatus }) => {
 
 // Componente wrapper para verificar autenticação
 const AppContent = () => {
-    const { isAuthenticated, isLoading } = useAuth();
+    const { isAuthenticated, isLoading, makeAuthenticatedRequest } = useAuth();
     
     // Estado para exibir o status do backend
     const [pingStatus, setPingStatus] = useState('⏳ Conectando...');
@@ -322,9 +314,8 @@ const AppContent = () => {
     // Função para verificar o status do backend
     const checkBackendStatus = async () => {
         try {
-            const response = await fetch(`${API_BASE_URL}/ping`);
-            const text = await response.text();
-            setPingStatus(text);
+            const response = await makeAuthenticatedRequest('/ping');
+            setPingStatus(response?.message || 'Backend conectado');
         } catch (error) {
             console.error("Erro ao conectar com o backend:", error);
             setPingStatus('❌ Backend indisponível (Erro de rede/CORS)');
@@ -334,7 +325,7 @@ const AppContent = () => {
     // Executa o ping na montagem do componente
     useEffect(() => {
         checkBackendStatus();
-    }, []);
+    }, [makeAuthenticatedRequest]);
 
     if (isLoading) {
         return (

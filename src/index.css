@@ -47,14 +47,11 @@ body {
   color: var(--text);
 }
 
-header, .top-nav-container, .top-nav-link {
+header {
   background: transparent;
 }
 
-.top-nav-link {
-  color: var(--text) !important;
-  background: var(--nav-bg);
-}
+/* Removido .top-nav-container e .top-nav-link daqui para não sobrepor o Home.css */
 
 .card, .familia-card, .empty-state, .loading-message, .message, .modal {
   background: var(--surface) !important;

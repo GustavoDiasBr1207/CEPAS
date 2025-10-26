@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
 import '../components/Formulario.css';
 import './ListaFamilias.css';
 import Formulario from '../components/Formulario';
-import { useNavigate } from 'react-router-dom';
 
 const ListaFamilias = () => {
+    const { makeAuthenticatedRequest } = useAuth();
     const [familias, setFamilias] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -16,7 +18,6 @@ const ListaFamilias = () => {
     const [filterStatus, setFilterStatus] = useState('all');
     const [filterField, setFilterField] = useState('all');
 
-    const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:3001/api';
     const navigate = useNavigate();
 
     // Carrega a lista de famílias ao montar o componente
@@ -30,18 +31,8 @@ const ListaFamilias = () => {
         
         try {
             console.log('📋 Carregando lista de famílias...');
-            const response = await fetch(`${API_BASE_URL}/familias`, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-            });
+            const data = await makeAuthenticatedRequest('/familias');
 
-            if (!response.ok) {
-                throw new Error(`Erro ${response.status}: ${response.statusText}`);
-            }
-
-            const data = await response.json();
             console.log('✅ Famílias carregadas:', data);
             
             setFamilias(data.data || []);
@@ -76,18 +67,9 @@ const ListaFamilias = () => {
         
         try {
             console.log(`🗑️ Deletando família ID: ${idFamilia}...`);
-            const response = await fetch(`${API_BASE_URL}/familia/${idFamilia}`, {
-                method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+            const data = await makeAuthenticatedRequest(`/familia/${idFamilia}`, {
+                method: 'DELETE'
             });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.message || `Erro ${response.status}: ${response.statusText}`);
-            }
 
             console.log('✅ Família deletada:', data);
             setSuccess(`✅ ${data.message}`);
@@ -107,16 +89,7 @@ const ListaFamilias = () => {
         try {
             setEditLoading(true);
             // Buscar dados completos da família
-            const response = await fetch(`${API_BASE_URL}/familia/${idFamilia}`, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-            });
-            if (!response.ok) {
-                throw new Error(`Erro ${response.status}: ${response.statusText}`);
-            }
-            const familiaCompleta = await response.json();
+            const familiaCompleta = await makeAuthenticatedRequest(`/familia/${idFamilia}`);
             setFamiliaEditando(familiaCompleta.data || familiaCompleta);
         } catch (err) {
             setError(`❌ Erro ao carregar dados da família: ${err.message}`);
@@ -131,17 +104,13 @@ const ListaFamilias = () => {
         setError('');
         setSuccess('');
         try {
-            const response = await fetch(`${API_BASE_URL}/familia/${familiaEditando.id_familia}`, {
+            const resp = await makeAuthenticatedRequest(`/familia/${familiaEditando.id_familia}`, {
                 method: 'PUT',
                 headers: {
-                    'Content-Type': 'application/json',
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(dadosEditados)
             });
-            const resp = await response.json();
-            if (!response.ok) {
-                throw new Error(resp.message || resp.error || 'Erro desconhecido');
-            }
             setSuccess('Família editada com sucesso!');
             setFamiliaEditando(null);
             await carregarFamilias();

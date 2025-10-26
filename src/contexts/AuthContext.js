@@ -1,4 +1,5 @@
-import React, { createContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { hasPermission as systemHasPermission, canAccessRoute, getPermissionErrorMessage } from '../utils/permissions';
 
 // Configuração da API
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:3001/api';
@@ -10,7 +11,7 @@ export const AuthProvider = ({ children }) => {
     const [isLoading, setIsLoading] = useState(true);
     const [token, setToken] = useState(localStorage.getItem('accessToken'));
 
-    // Configurar interceptador para requests
+    // Configurar interceptador para requests (retorna JSON quando disponível; caso contrário, texto)
     const makeAuthenticatedRequest = async (url, options = {}) => {
         const authToken = localStorage.getItem('accessToken');
         
@@ -21,9 +22,11 @@ export const AuthProvider = ({ children }) => {
 
         if (authToken) {
             headers.Authorization = `Bearer ${authToken}`;
+        } else {
+            throw new Error('Token de acesso requerido');
         }
 
-        const response = await fetch(`${API_BASE_URL}${url}`, {
+        let response = await fetch(`${API_BASE_URL}${url}`, {
             ...options,
             headers,
         });
@@ -33,19 +36,56 @@ export const AuthProvider = ({ children }) => {
             const refreshed = await refreshToken();
             if (refreshed) {
                 // Tentar novamente com o novo token
-                headers.Authorization = `Bearer ${localStorage.getItem('accessToken')}`;
-                return fetch(`${API_BASE_URL}${url}`, {
+                const newToken = localStorage.getItem('accessToken');
+                headers.Authorization = `Bearer ${newToken}`;
+                const retryResponse = await fetch(`${API_BASE_URL}${url}`, {
                     ...options,
                     headers,
                 });
+                
+                if (!retryResponse.ok) {
+                    // tentar extrair mensagem de erro do corpo
+                    const ct = retryResponse.headers.get('content-type') || '';
+                    if (ct.includes('application/json')) {
+                        const errBody = await retryResponse.json().catch(() => ({}));
+                        throw new Error(errBody.message || `Erro ${retryResponse.status}: ${retryResponse.statusText}`);
+                    } else {
+                        const errText = await retryResponse.text().catch(() => '');
+                        throw new Error(errText || `Erro ${retryResponse.status}: ${retryResponse.statusText}`);
+                    }
+                }
+                
+                const ct = retryResponse.headers.get('content-type') || '';
+                if (ct.includes('application/json')) {
+                    return await retryResponse.json();
+                }
+                const text = await retryResponse.text();
+                return { message: text };
             } else {
                 // Se não conseguiu renovar, fazer logout
                 logout();
-                throw new Error('Sessão expirada');
+                throw new Error('Sessão expirada. Faça login novamente.');
             }
         }
 
-        return response;
+        if (!response.ok) {
+            const ct = response.headers.get('content-type') || '';
+            if (ct.includes('application/json')) {
+                const errBody = await response.json().catch(() => ({}));
+                throw new Error(errBody.message || `Erro ${response.status}: ${response.statusText}`);
+            } else {
+                const errText = await response.text().catch(() => '');
+                throw new Error(errText || `Erro ${response.status}: ${response.statusText}`);
+            }
+        }
+
+        // OK: retornar JSON quando possível; senão, texto
+        const contentType = response.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+            return await response.json();
+        }
+        const text = await response.text();
+        return { message: text };
     };
 
     // Verificar usuário logado ao carregar a aplicação
@@ -55,7 +95,12 @@ export const AuthProvider = ({ children }) => {
             
             if (storedToken) {
                 try {
-                    const response = await makeAuthenticatedRequest('/auth/me');
+                    const response = await fetch(`${API_BASE_URL}/auth/me`, {
+                        headers: {
+                            'Authorization': `Bearer ${storedToken}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
                     
                     if (response.ok) {
                         const data = await response.json();
@@ -112,12 +157,18 @@ export const AuthProvider = ({ children }) => {
     // Função de logout
     const logout = async () => {
         try {
-            const refreshToken = localStorage.getItem('refreshToken');
+            const refreshTokenValue = localStorage.getItem('refreshToken');
+            const accessToken = localStorage.getItem('accessToken');
             
-            if (refreshToken && token) {
-                await makeAuthenticatedRequest('/auth/logout', {
+            if (refreshTokenValue && accessToken) {
+                // Fazer logout no servidor sem usar makeAuthenticatedRequest para evitar loop
+                await fetch(`${API_BASE_URL}/auth/logout`, {
                     method: 'POST',
-                    body: JSON.stringify({ refreshToken }),
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${accessToken}`
+                    },
+                    body: JSON.stringify({ refreshToken: refreshTokenValue }),
                 });
             }
         } catch (error) {
@@ -163,7 +214,7 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
-    // Verificar se usuário tem permissão
+    // Verificar se usuário tem permissão por roles simples
     const hasPermission = (requiredRoles) => {
         if (!user) return false;
         
@@ -186,7 +237,14 @@ export const AuthProvider = ({ children }) => {
         isAdmin: user?.tipo_usuario === 'admin',
         isCoordenador: user?.tipo_usuario === 'coordenador',
         isMonitor: user?.tipo_usuario === 'monitor',
-        isVisualizador: user?.tipo_usuario === 'visualizador'
+        isVisualizador: user?.tipo_usuario === 'visualizador',
+        // Novos utilitários de permissão usando o sistema atualizado
+    // Permissões de sistema baseadas em regras externas
+    hasSystemPermission: (action, resource) => systemHasPermission(user, action, resource),
+    canAccessRoute: (route) => canAccessRoute(user, route),
+    getPermissionErrorMessage: (action, resource) => getPermissionErrorMessage(user, action, resource),
+        // Helper para verificar se é admin com poder máximo
+        isMaxAdmin: () => user?.tipo_usuario === 'admin' || user?.role === 'admin'
     };
 
     return (

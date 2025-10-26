@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../hooks/useAuth';
 import { validateCompleteForm, formatErrorMessages } from '../utils/validationHelpers';
-import { getMonitors } from '../services/cepasService';
 import MembrosList from './MembrosList';
 import './Formulario.css';
 
 function Formulario({ onSave, disabled = false, dadosIniciais = null, modoEdicao = false }) {
+    const { makeAuthenticatedRequest } = useAuth();
     // Estado para armazenar os dados do formulário baseado na tabela Familia do Oracle
     const [formData, setFormData] = useState({
         // Dados da família (tabela Familia)
@@ -80,11 +81,8 @@ function Formulario({ onSave, disabled = false, dadosIniciais = null, modoEdicao
     useEffect(() => {
         const fetchAreas = async () => {
             try {
-                const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:3001/api'}/dados/Area`);
-                if (response.ok) {
-                    const areasData = await response.json();
-                    setAreas(areasData);
-                }
+                const areasData = await makeAuthenticatedRequest('/dados/Area');
+                setAreas(areasData || []);
             } catch (error) {
                 console.error('Erro ao buscar áreas:', error);
             }
@@ -93,7 +91,7 @@ function Formulario({ onSave, disabled = false, dadosIniciais = null, modoEdicao
         // fetch monitors for entrevistador select
         const fetchMonitors = async () => {
             try {
-                const data = await getMonitors();
+                const data = await makeAuthenticatedRequest('/dados/Monitor');
                 // Normalize possible response shapes:
                 // - Array
                 // - { data: [...] }
@@ -110,7 +108,7 @@ function Formulario({ onSave, disabled = false, dadosIniciais = null, modoEdicao
             }
         };
         fetchMonitors();
-    }, []);
+    }, [makeAuthenticatedRequest]);
 
     // Carregar dados iniciais quando em modo edição
     useEffect(() => {

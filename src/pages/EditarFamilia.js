@@ -1,8 +1,10 @@
 // src/pages/EditarFamilia.js
 import React, { useState, useEffect } from 'react';
 import Formulario from '../components/Formulario';
+import { useAuth } from '../hooks/useAuth';
 
 const EditarFamilia = ({ familiaId, onVoltar, onSucesso }) => {
+    const { makeAuthenticatedRequest } = useAuth();
     const [loading, setLoading] = useState(false);
     const [loadingData, setLoadingData] = useState(true);
     const [message, setMessage] = useState({ text: '', type: '' });
@@ -15,13 +17,8 @@ const EditarFamilia = ({ familiaId, onVoltar, onSucesso }) => {
     useEffect(() => {
         const testConnection = async () => {
             try {
-                const pingUrl = `${API_BASE_URL}/ping`;
-                const response = await fetch(pingUrl);
-                if (response.ok) {
-                    setConnectionStatus('connected');
-                } else {
-                    setConnectionStatus('error');
-                }
+                const response = await makeAuthenticatedRequest('/ping');
+                setConnectionStatus('connected');
             } catch (error) {
                 setConnectionStatus('error');
             }
@@ -32,17 +29,17 @@ const EditarFamilia = ({ familiaId, onVoltar, onSucesso }) => {
             
             setLoading(true);
             try {
-                const response = await fetch(`${API_BASE_URL}/familia/${familiaId}`);
-                if (response.ok) {
-                    const result = await response.json();
-                    if (result.data) {
-                        setDadosOriginais(result.data);
-                    }
+                const result = await makeAuthenticatedRequest(`/familia/${familiaId}`);
+                if (result && result.data) {
+                    setDadosOriginais(result.data);
+                } else if (result) {
+                    setDadosOriginais(result);
                 } else {
-                    setMessage({ text: 'Erro ao carregar dados da família', type: 'error' });
+                    setMessage({ text: 'Dados da família não encontrados', type: 'error' });
                 }
             } catch (error) {
-                setMessage({ text: `Erro: ${error.message}`, type: 'error' });
+                console.error('Erro ao carregar família:', error);
+                setMessage({ text: `Erro ao carregar dados da família: ${error.message}`, type: 'error' });
             } finally {
                 setLoading(false);
             }
@@ -63,15 +60,8 @@ const EditarFamilia = ({ familiaId, onVoltar, onSucesso }) => {
     const carregarFamilia = async (id) => {
         try {
             console.log(`Carregando família ID: ${id}`);
-            const response = await fetch(`${API_BASE_URL}/familia/${id}`);
-            
-            if (!response.ok) {
-                throw new Error(`Erro ao carregar família: ${response.status}`);
-            }
-            
-            const dados = await response.json();
+            const dados = await makeAuthenticatedRequest(`/familia/${id}`);
             console.log('Dados carregados:', dados);
-            
             return dados;
         } catch (error) {
             console.error('Erro ao carregar família:', error);
@@ -89,34 +79,16 @@ const EditarFamilia = ({ familiaId, onVoltar, onSucesso }) => {
             console.log('Dados da família sendo enviados:', JSON.stringify(dadosDaFamilia, null, 2));
             
             // Fazer requisição de atualização
-            const url = `${API_BASE_URL}/familia/${familiaId}`;
+            const url = `/familia/${familiaId}`;
             console.log('URL de atualização:', url);
             
-            const response = await fetch(url, {
+            const responseData = await makeAuthenticatedRequest(url, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify(dadosDaFamilia)
             });
-
-            console.log('Status da resposta:', response.status);
-            
-            // Tenta ler a resposta como JSON primeiro
-            const responseText = await response.text();
-            console.log('Resposta bruta do servidor:', responseText);
-            
-            let responseData;
-            try {
-                responseData = JSON.parse(responseText);
-            } catch (parseError) {
-                console.error('Erro ao fazer parse da resposta JSON:', parseError);
-                throw new Error(`Resposta inválida do servidor: ${responseText.substring(0, 100)}...`);
-            }
-
-            if (!response.ok) {
-                throw new Error(`Erro ${response.status}: ${responseData.message || responseData.error || 'Erro desconhecido'}`);
-            }
 
             console.log('✅ Família atualizada com sucesso:', responseData);
             
