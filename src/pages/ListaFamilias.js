@@ -14,6 +14,8 @@ const ListaFamilias = () => {
     const [deletingId, setDeletingId] = useState(null);
     const [familiaEditando, setFamiliaEditando] = useState(null);
     const [editLoading, setEditLoading] = useState(false);
+    const [familiaVisualizando, setFamiliaVisualizando] = useState(null);
+    const [viewLoadingId, setViewLoadingId] = useState(null);
     const [filterText, setFilterText] = useState('');
     const [filterStatus, setFilterStatus] = useState('all');
     const [filterField, setFilterField] = useState('all');
@@ -98,6 +100,24 @@ const ListaFamilias = () => {
         }
     };
 
+    const visualizarFamilia = async (idFamilia) => {
+        setViewLoadingId(idFamilia);
+        setError('');
+        try {
+            const resposta = await makeAuthenticatedRequest(`/familia/${idFamilia}`);
+            setFamiliaVisualizando(resposta.data || resposta);
+        } catch (err) {
+            console.error('❌ Erro ao carregar detalhes da família:', err);
+            setError(`❌ Erro ao carregar detalhes da família: ${err.message}`);
+        } finally {
+            setViewLoadingId(null);
+        }
+    };
+
+    const fecharVisualizacao = () => {
+        setFamiliaVisualizando(null);
+    };
+
     const handleSalvarEdicao = async (dadosEditados) => {
         if (!familiaEditando || !familiaEditando.id_familia) return;
         setEditLoading(true);
@@ -152,6 +172,25 @@ const ListaFamilias = () => {
 
     const handleEditarClick = (idFamilia) => {
         navigate(`/editar-familia/${idFamilia}`);
+    };
+
+    const getCampo = (obj, chaves) => {
+        if (!obj) return null;
+        for (const chave of chaves) {
+            if (Object.prototype.hasOwnProperty.call(obj, chave)) {
+                const valor = obj[chave];
+                if (valor !== undefined && valor !== null && valor !== '') {
+                    return valor;
+                }
+            }
+        }
+        return null;
+    };
+
+    const formatarBooleano = (valor) => {
+        if (valor === 1 || valor === true) return 'Sim';
+        if (valor === 0 || valor === false) return 'Não';
+        return 'Não informado';
     };
 
     // Filtragem local: texto e status
@@ -442,6 +481,14 @@ const ListaFamilias = () => {
 
                             <div className="familia-actions">
                                 <button
+                                    onClick={() => visualizarFamilia(familia.ID_FAMILIA)}
+                                    disabled={viewLoadingId === familia.ID_FAMILIA}
+                                    className="btn-view"
+                                >
+                                    {viewLoadingId === familia.ID_FAMILIA ? '👁️ Abrindo...' : '👁️ Ver'}
+                                </button>
+
+                                <button
                                     onClick={() => handleEditarClick(familia.ID_FAMILIA)}
                                     disabled={deletingId === familia.ID_FAMILIA}
                                     className="btn-edit"
@@ -463,6 +510,179 @@ const ListaFamilias = () => {
                             </div>
                         </div>
                     ))}
+                </div>
+            )}
+
+            {familiaVisualizando && (
+                <div className="modal-overlay" role="dialog" aria-modal="true">
+                    <div className="modal modal-view">
+                        <h2>Detalhes da Família</h2>
+                        <p className="view-subtitle">
+                            ID: {getCampo(familiaVisualizando, ['id_familia', 'ID_FAMILIA']) || 'N/I'}
+                        </p>
+
+                        <div className="view-section">
+                            <h3>Dados Gerais</h3>
+                            <ul>
+                                <li><strong>Nome:</strong> {getCampo(familiaVisualizando, ['nome_familia', 'NOME_FAMILIA']) || 'Não informado'}</li>
+                                <li><strong>Responsável:</strong> {getCampo(familiaVisualizando, ['nome_responsavel', 'NOME_RESPONSAVEL']) || 'Não informado'}</li>
+                                <li><strong>Contato:</strong> {getCampo(familiaVisualizando, ['telefone_contato', 'contato', 'TELEFONE_CONTATO', 'CONTATO']) || 'Não informado'}</li>
+                                <li><strong>Data de Cadastro:</strong> {formatarData(getCampo(familiaVisualizando, ['data_cadastro', 'DATA_CADASTRO']))}</li>
+                                <li><strong>Recebe Benefício:</strong> {formatarBooleano(getCampo(familiaVisualizando, ['recebe_beneficio', 'RECEBE_BENEFICIO']))}</li>
+                                <li><strong>Possui Plano de Saúde:</strong> {formatarBooleano(getCampo(familiaVisualizando, ['possui_plano_saude', 'POSSUI_PLANO_SAUDE']))}</li>
+                                {getCampo(familiaVisualizando, ['convenio', 'CONVENIO']) && (
+                                    <li><strong>Convênio:</strong> {getCampo(familiaVisualizando, ['convenio', 'CONVENIO'])}</li>
+                                )}
+                                {getCampo(familiaVisualizando, ['observacoes', 'OBSERVACOES']) && (
+                                    <li><strong>Observações:</strong> {getCampo(familiaVisualizando, ['observacoes', 'OBSERVACOES'])}</li>
+                                )}
+                            </ul>
+                        </div>
+
+                        <div className="view-section">
+                            <h3>Endereço</h3>
+                            {(() => {
+                                const endereco = getCampo(familiaVisualizando, ['endereco', 'ENDERECO']) || {};
+                                return (
+                                    <ul>
+                                        <li><strong>Área:</strong> {getCampo(endereco, ['nome_area', 'NOME_AREA']) || getCampo(endereco, ['id_area', 'ID_AREA']) || 'Não informado'}</li>
+                                        <li><strong>Quadra:</strong> {getCampo(endereco, ['quadra', 'QUADRA']) || 'Não informado'}</li>
+                                        <li><strong>Rua:</strong> {getCampo(endereco, ['rua', 'RUA']) || 'Não informado'}</li>
+                                        <li><strong>Número:</strong> {getCampo(endereco, ['numero_casa', 'NUMERO_CASA']) || 'Não informado'}</li>
+                                        {getCampo(endereco, ['complemento', 'COMPLEMENTO']) && (
+                                            <li><strong>Complemento:</strong> {getCampo(endereco, ['complemento', 'COMPLEMENTO'])}</li>
+                                        )}
+                                    </ul>
+                                );
+                            })()}
+                        </div>
+
+                        <div className="view-section">
+                            <h3>Estrutura da Habitação</h3>
+                            {(() => {
+                                const estrutura = getCampo(familiaVisualizando, ['estrutura', 'estrutura_habitacao', 'ESTRUTURA']) || {};
+                                return (
+                                    <ul>
+                                        <li><strong>Tipo de Habitação:</strong> {getCampo(estrutura, ['tipo_habitacao', 'TIPO_HABITACAO']) || 'Não informado'}</li>
+                                        <li><strong>Tipo de Lote:</strong> {getCampo(estrutura, ['tipo_lote', 'TIPO_LOTE']) || 'Não informado'}</li>
+                                        <li><strong>Convivência:</strong> {getCampo(estrutura, ['situacao_convivencia', 'SITUACAO_CONVIVENCIA']) || 'Não informado'}</li>
+                                        <li><strong>Energia Elétrica:</strong> {formatarBooleano(getCampo(estrutura, ['energia_eletrica', 'ENERGIA_ELETRICA']))}</li>
+                                        <li><strong>Material Parede:</strong> {getCampo(estrutura, ['material_parede', 'MATERIAL_PAREDE']) || 'Não informado'}</li>
+                                        <li><strong>Material Piso:</strong> {getCampo(estrutura, ['material_piso', 'MATERIAL_PISO']) || 'Não informado'}</li>
+                                        <li><strong>Material Cobertura:</strong> {getCampo(estrutura, ['material_cobertura', 'MATERIAL_COBERTURA']) || 'Não informado'}</li>
+                                        <li><strong>Quartos:</strong> {getCampo(estrutura, ['qtd_quartos', 'QTD_QUARTOS']) || 'Não informado'}</li>
+                                        <li><strong>Camas:</strong> {getCampo(estrutura, ['qtd_camas', 'QTD_CAMAS']) || 'Não informado'}</li>
+                                        {getCampo(estrutura, ['tipo_camas', 'TIPO_CAMAS']) && (
+                                            <li><strong>Tipo de Camas:</strong> {getCampo(estrutura, ['tipo_camas', 'TIPO_CAMAS'])}</li>
+                                        )}
+                                    </ul>
+                                );
+                            })()}
+                        </div>
+
+                        <div className="view-split">
+                            <div className="view-section">
+                                <h3>Animais</h3>
+                                {(() => {
+                                    const animal = getCampo(familiaVisualizando, ['animal', 'ANIMAL']) || {};
+                                    return (
+                                        <ul>
+                                            <li><strong>Possui Animais:</strong> {formatarBooleano(getCampo(animal, ['tem_animal', 'TEM_ANIMAL']))}</li>
+                                            {getCampo(animal, ['qtd_animais', 'QTD_ANIMAIS']) && (
+                                                <li><strong>Quantidade:</strong> {getCampo(animal, ['qtd_animais', 'QTD_ANIMAIS'])}</li>
+                                            )}
+                                            {getCampo(animal, ['qual_animal', 'QUAL_ANIMAL']) && (
+                                                <li><strong>Tipos:</strong> {getCampo(animal, ['qual_animal', 'QUAL_ANIMAL'])}</li>
+                                            )}
+                                        </ul>
+                                    );
+                                })()}
+                            </div>
+
+                            <div className="view-section">
+                                <h3>Saneamento</h3>
+                                {(() => {
+                                    const saneamento = getCampo(familiaVisualizando, ['saneamento', 'RECURSO_SANEAMENTO']) || {};
+                                    return (
+                                        <ul>
+                                            <li><strong>Horta:</strong> {formatarBooleano(getCampo(saneamento, ['horta', 'HORTA']))}</li>
+                                            <li><strong>Árvore Frutífera:</strong> {formatarBooleano(getCampo(saneamento, ['arvore_frutifera', 'ARVORE_FRUTIFERA']))}</li>
+                                            <li><strong>Banheiro:</strong> {formatarBooleano(getCampo(saneamento, ['tem_banheiro', 'TEM_BANHEIRO']))}</li>
+                                            <li><strong>Esgotamento:</strong> {getCampo(saneamento, ['como_escoa', 'COMO_ESCOA']) || 'Não informado'}</li>
+                                            <li><strong>Destino do Lixo:</strong> {getCampo(saneamento, ['dest_lixo', 'DEST_LIXO']) || 'Não informado'}</li>
+                                            <li><strong>Consumo de Água:</strong> {getCampo(saneamento, ['bebe_agua', 'BEBE_AGUA']) || 'Não informado'}</li>
+                                            <li><strong>Tratamento da Água:</strong> {getCampo(saneamento, ['trata_agua', 'TRATA_AGUA']) || 'Não informado'}</li>
+                                        </ul>
+                                    );
+                                })()}
+                            </div>
+                        </div>
+
+                        <div className="view-section">
+                            <h3>Entrevista</h3>
+                            {(() => {
+                                const entrevista = getCampo(familiaVisualizando, ['entrevista', 'ENTREVISTA']) || {};
+                                return (
+                                    <ul>
+                                        <li><strong>Entrevistado:</strong> {getCampo(entrevista, ['entrevistado', 'ENTREVISTADO']) || 'Não informado'}</li>
+                                        <li><strong>Data:</strong> {formatarData(getCampo(entrevista, ['data_entrevista', 'DATA_ENTREVISTA']))}</li>
+                                        <li><strong>Entrevistador:</strong> {getCampo(entrevista, ['entrevistador_nome', 'ENTREVISTADOR_NOME', 'entrevistador', 'ENTREVISTADOR']) || 'Não informado'}</li>
+                                        <li><strong>Contato:</strong> {getCampo(entrevista, ['telefone_contato', 'TELEFONE_CONTATO']) || 'Não informado'}</li>
+                                        {getCampo(entrevista, ['observacoes', 'OBSERVACOES']) && (
+                                            <li><strong>Observações:</strong> {getCampo(entrevista, ['observacoes', 'OBSERVACOES'])}</li>
+                                        )}
+                                    </ul>
+                                );
+                            })()}
+                        </div>
+
+                        <div className="view-section">
+                            <h3>Membros da Família</h3>
+                            {(() => {
+                                const membros = getCampo(familiaVisualizando, ['membros', 'MEMBROS']);
+                                if (!Array.isArray(membros) || membros.length === 0) {
+                                    return <p>Nenhum membro cadastrado.</p>;
+                                }
+                                return (
+                                    <ul className="view-membros">
+                                        {membros.map((membro, index) => {
+                                            const chave = membro.id_membro || membro.ID_MEMBRO || membro.membro_id || index;
+                                            const criancaCepasValor = getCampo(membro, ['crianca_cepas', 'CRIANCA_CEPAS']);
+                                            const participaCepas = (() => {
+                                                if (!criancaCepasValor) return false;
+                                                if (typeof criancaCepasValor === 'object') {
+                                                    return criancaCepasValor.ativa === 1 || criancaCepasValor.ativa === true;
+                                                }
+                                                return criancaCepasValor === 1 || criancaCepasValor === true;
+                                            })();
+                                            return (
+                                                <li key={chave}>
+                                                    <span className="membro-nome">{getCampo(membro, ['nome', 'NOME']) || 'Sem nome'}</span>
+                                                    <span className="membro-detalhe">Relação: {getCampo(membro, ['relacao', 'RELACAO']) || 'N/I'}</span>
+                                                    {getCampo(membro, ['sexo', 'SEXO']) && (
+                                                        <span className="membro-detalhe">Sexo: {getCampo(membro, ['sexo', 'SEXO'])}</span>
+                                                    )}
+                                                    {getCampo(membro, ['data_nascimento', 'DATA_NASCIMENTO']) && (
+                                                        <span className="membro-detalhe">Nascimento: {formatarData(getCampo(membro, ['data_nascimento', 'DATA_NASCIMENTO']))}</span>
+                                                    )}
+                                                    {getCampo(membro, ['ocupacao', 'OCUPACAO']) && (
+                                                        <span className="membro-detalhe">Ocupação: {getCampo(membro, ['ocupacao', 'OCUPACAO'])}</span>
+                                                    )}
+                                                    {participaCepas && <span className="membro-tag">🎯 CEPAS</span>}
+                                                </li>
+                                            );
+                                        })}
+                                    </ul>
+                                );
+                            })()}
+                        </div>
+
+                        <div className="modal-actions">
+                            <button className="btn-secondary" onClick={fecharVisualizacao}>
+                                Fechar
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>
