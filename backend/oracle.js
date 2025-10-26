@@ -125,7 +125,10 @@ async function insertRecord(tableName, record) {
             'ESTRUTURAHABITACAO': 'ID_ESTRUTURA',
             'RECURSOSANEAMENTO': 'ID_RECURSO',
             'SAUDEMEMBRO': 'ID_SAUDE',
-            'CRIANCACEPAS': 'ID_CRIANCA'
+            'CRIANCACEPAS': 'ID_CRIANCA',
+            'USUARIO': 'ID_USUARIO',
+            'REFRESHTOKEN': 'ID_TOKEN',
+            'LOGSISTEMA': 'ID_LOG'
         };
 
         const tableNameUpper = String(tableName).toUpperCase();

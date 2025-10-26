@@ -1,46 +1,40 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from "../hooks/useAuth";
+import './Nav.css';
 
-/**
- * Componente de Navegação Principal (Nav.js)
- * Renderiza a barra superior de navegação com links para as rotas da aplicação.
- * Usa Tailwind CSS para estilização.
- */
 const Nav = () => {
-  const linkClass = "hover:text-blue-400 transition-colors p-2 rounded-lg";
-  const activeClass = "bg-gray-700 text-blue-300 shadow-inner";
+  const { user, logout } = useAuth();
 
-  // Função utilitária para determinar se o link está ativo (simples)
-  const isLinkActive = (path) => {
-    // Nota: Em um projeto real, você usaria o hook 'useLocation' para isso.
-    // Aqui, faremos uma simplificação visual.
-    return window.location.pathname === path ? activeClass : "text-white";
+  const handleLogout = async () => {
+    if (window.confirm("Tem certeza que deseja sair?")) {
+      await logout();
+    }
   };
   
   return (
-    <nav className="bg-gray-800 p-4 shadow-lg sticky top-0 z-10">
-      <ul className="flex justify-center space-x-6 text-white font-medium">
-        <li>
-          <Link to="/" className={`${linkClass} ${isLinkActive('/')}`}>
-            🏠 Início
-          </Link>
-        </li>
-        <li>
-          <Link to="/consulta" className={`${linkClass} ${isLinkActive('/consulta')}`}>
-            📊 Consulta (Famílias)
-          </Link>
-        </li>
-        <li>
-          <Link to="/cadastro" className={`${linkClass} ${isLinkActive('/cadastro')}`}>
-            ➕ Cadastrar Família
-          </Link>
-        </li>
-        <li>
-          <Link to="/consulta-avancada" className={`${linkClass} ${isLinkActive('/consulta-avancada')}`}>
-            ⚙️ Consulta Dinâmica
-          </Link>
-        </li>
-      </ul>
+    <nav className="top-nav-container">
+      <div className="nav-brand">
+        <Link to="/" className="brand-link">CEPAS</Link>
+      </div>
+      
+      <div className="nav-links">
+        <Link to="/" className="top-nav-link">🏠 Início</Link>
+        <Link to="/consulta" className="top-nav-link">📊 Consulta Geral</Link>
+        <Link to="/lista-familias" className="top-nav-link">📋 Lista de Famílias</Link>
+        <Link to="/cadastro" className="top-nav-link">💾 Cadastro Completo</Link>
+        <Link to="/cadastro-monitor" className="top-nav-link">👤 Cadastro de Monitores</Link>
+        <Link to="/monitores" className="top-nav-link">👥 Lista de Monitores</Link>
+      </div>
+      
+      <div className="nav-user">
+        <span className="user-info">
+          {user?.nome_completo || user?.username || user?.email}
+        </span>
+        <button onClick={handleLogout} className="logout-btn">
+          Sair
+        </button>
+      </div>
     </nav>
   );
 };

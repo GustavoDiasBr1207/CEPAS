@@ -1,6 +1,6 @@
 /**
  * cepasService.js
- * Funções para interagir com o Backend (API Node.js/Express).
+ * Funções para interagir com o Backend (API Node.js/Express) com autenticação.
  * Agora compatível com Docker e com funções CRUD completas.
  */
 
@@ -9,6 +9,64 @@
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:3001/api'; 
 // Define o nome da tabela que este serviço irá manipular
 const TABLE_NAME = 'Familia'; 
+
+// Função auxiliar para obter headers autenticados
+const getAuthHeaders = () => {
+    const token = localStorage.getItem('accessToken');
+    return {
+        'Content-Type': 'application/json',
+        ...(token && { 'Authorization': `Bearer ${token}` })
+    };
+};
+
+// Função auxiliar para fazer requests autenticados com renovação automática de token
+const makeAuthenticatedRequest = async (url, options = {}) => {
+    const headers = {
+        ...getAuthHeaders(),
+        ...options.headers
+    };
+
+    let response = await fetch(url, { ...options, headers });
+
+    // Se token expirou, tentar renovar
+    if (response.status === 401) {
+        const refreshToken = localStorage.getItem('refreshToken');
+        if (refreshToken) {
+            try {
+                const refreshResponse = await fetch(`${API_BASE_URL}/auth/refresh`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ refreshToken })
+                });
+
+                if (refreshResponse.ok) {
+                    const data = await refreshResponse.json();
+                    localStorage.setItem('accessToken', data.tokens.accessToken);
+                    localStorage.setItem('refreshToken', data.tokens.refreshToken);
+                    
+                    // Tentar novamente com o novo token
+                    headers.Authorization = `Bearer ${data.tokens.accessToken}`;
+                    response = await fetch(url, { ...options, headers });
+                } else {
+                    // Se não conseguiu renovar, redirecionar para login
+                    localStorage.removeItem('accessToken');
+                    localStorage.removeItem('refreshToken');
+                    window.location.reload();
+                    throw new Error('Sessão expirada');
+                }
+            } catch (err) {
+                localStorage.removeItem('accessToken');
+                localStorage.removeItem('refreshToken');
+                window.location.reload();
+                throw new Error('Sessão expirada');
+            }
+        } else {
+            throw new Error('Não autorizado');
+        }
+    }
+
+    return response;
+}; 
 
 // -------------------------------------------------------------------
 // 1. FUNÇÃO DE CRIAÇÃO (POST) - Rota: POST /api/dados/Familia
@@ -24,12 +82,8 @@ export async function createFamilia(familiaData) {
     const url = `${API_BASE_URL}/familia-completa`; // Nova rota específica
 
     try {
-        const response = await fetch(url, {
+        const response = await makeAuthenticatedRequest(url, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-user': 'usuario_sistema' // Header para auditoria
-            },
             body: JSON.stringify(familiaData),
         });
 
@@ -68,10 +122,7 @@ export async function getFamilias() {
     try {
         const response = await fetch(url, {
             method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-user': 'usuario_sistema'
-            }
+            headers: getAuthHeaders()
         });
 
         if (!response.ok) {
@@ -105,15 +156,12 @@ export async function getFamilias() {
  * @returns {Object} O objeto de resposta do backend.
  */
 export async function updateFamilia(id, familiaData) {
-    // Adiciona o ID ao final da URL
-    const url = `${API_BASE_URL}/dados/${TABLE_NAME}/${id}`;
+    // Usa a nova rota de família completa para atualização
+    const url = `${API_BASE_URL}/familia/${id}`;
 
     try {
-        const response = await fetch(url, {
-            method: 'PUT', // Usamos PUT para atualização completa
-            headers: {
-                'Content-Type': 'application/json',
-            },
+        const response = await makeAuthenticatedRequest(url, {
+            method: 'PUT',
             body: JSON.stringify(familiaData),
         });
 
@@ -122,7 +170,6 @@ export async function updateFamilia(id, familiaData) {
             throw new Error(`Erro ${response.status}: ${errorBody.error || 'Falha ao atualizar a família.'}`);
         }
 
-        // Retorna o resultado da operação (pode ser um status OK ou o objeto atualizado)
         return response.json();
 
     } catch (error) {
@@ -141,15 +188,12 @@ export async function updateFamilia(id, familiaData) {
  * @returns {Object} O objeto de resposta do backend (geralmente um status de sucesso).
  */
 export async function deleteFamilia(id) {
-    // Adiciona o ID ao final da URL
-    const url = `${API_BASE_URL}/dados/${TABLE_NAME}/${id}`;
+    // Usa a nova rota de família completa para exclusão
+    const url = `${API_BASE_URL}/familia/${id}`;
 
     try {
-        const response = await fetch(url, {
-            method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json', // Necessário para alguns servidores
-            },
+        const response = await makeAuthenticatedRequest(url, {
+            method: 'DELETE'
         });
 
         // O backend pode não retornar corpo para DELETE, apenas verificamos o status.
@@ -179,12 +223,8 @@ export async function deleteFamilia(id) {
 export async function createMonitor(monitorData) {
     const url = `${API_BASE_URL}/dados/Monitor`;
     try {
-        const response = await fetch(url, {
+        const response = await makeAuthenticatedRequest(url, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-user': 'usuario_sistema'
-            },
             body: JSON.stringify(monitorData)
         });
 
@@ -206,7 +246,11 @@ export async function createMonitor(monitorData) {
 export async function getMonitors() {
     const url = `${API_BASE_URL}/dados/Monitor`;
     try {
-        const response = await fetch(url, { method: 'GET', headers: { 'Content-Type': 'application/json' } });
+        const response = await fetch(url, { 
+            method: 'GET', 
+            headers: getAuthHeaders() 
+        });
+        
         if (!response.ok) {
             const errorBody = await response.text().catch(() => 'Erro desconhecido');
             throw new Error(`Erro ${response.status}: ${errorBody}`);
@@ -224,11 +268,11 @@ export async function getMonitors() {
 export async function updateMonitor(id, monitorData) {
     const url = `${API_BASE_URL}/dados/Monitor/${id}`;
     try {
-        const response = await fetch(url, {
+        const response = await makeAuthenticatedRequest(url, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(monitorData)
         });
+        
         if (!response.ok) {
             const errorBody = await response.text().catch(() => 'Erro desconhecido');
             throw new Error(`Erro ${response.status}: ${errorBody}`);
@@ -246,7 +290,10 @@ export async function updateMonitor(id, monitorData) {
 export async function deleteMonitor(id) {
     const url = `${API_BASE_URL}/dados/Monitor/${id}`;
     try {
-        const response = await fetch(url, { method: 'DELETE' });
+        const response = await makeAuthenticatedRequest(url, { 
+            method: 'DELETE' 
+        });
+        
         if (!response.ok) {
             const errorBody = await response.text().catch(() => 'Erro desconhecido');
             throw new Error(`Erro ${response.status}: ${errorBody}`);
@@ -254,6 +301,32 @@ export async function deleteMonitor(id) {
         return { success: true };
     } catch (error) {
         console.error('Erro no serviço deleteMonitor:', error);
+        throw error;
+    }
+}
+
+/**
+ * Busca dados completos de uma família para edição
+ * @param {string|number} id - ID da família
+ * @returns {Object} Dados completos da família
+ */
+export async function getFamiliaCompleta(id) {
+    const url = `${API_BASE_URL}/familia/${id}`;
+    try {
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: getAuthHeaders()
+        });
+
+        if (!response.ok) {
+            const errorBody = await response.json().catch(() => ({ message: 'Erro desconhecido' }));
+            throw new Error(`Erro ${response.status}: ${errorBody.message}`);
+        }
+
+        const result = await response.json();
+        return result.data;
+    } catch (error) {
+        console.error('Erro no serviço getFamiliaCompleta:', error);
         throw error;
     }
 }

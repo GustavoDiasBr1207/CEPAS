@@ -1,6 +1,8 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
+// Ensure top navigation styles are always loaded globally
+import './Home.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 

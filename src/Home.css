@@ -96,30 +96,3 @@ header h1 { line-height: 1.05; }
 @media (min-width: 992px) {
   .cards-section { padding-top: 80px; }
 }
-
-/* Top navigation boxed links (spacing, light green background, hover movement) */
-.top-nav-container { gap: 10px; }
-.top-nav-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  border-radius: 8px;
-  background: rgba(236, 253, 245, 0.9); /* very light green */
-  border: 1px solid rgba(16, 185, 129, 0.12);
-  color: #065f46; /* deep green text */
-  transform: translateY(0);
-  transition: transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
-  text-decoration: none !important; /* remove underline */
-  font-family: 'Poppins', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
-  font-weight: 600;
-}
-.top-nav-link:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 20px rgba(16, 185, 129, 0.08);
-  background: rgba(220, 252, 231, 0.95); /* slightly stronger green on hover */
-  text-decoration: none !important;
-}
-
-/* ensure anchors do not show underlines in any state */
-.top-nav-link, .top-nav-link:visited, .top-nav-link:active, .top-nav-link:focus { text-decoration: none !important; }

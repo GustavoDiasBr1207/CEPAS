@@ -11,6 +11,13 @@ import EditarFamilia from './pages/EditarFamilia';
 import CadastroMonitor from './pages/CadastroMonitor';
 import ListaMonitores from './pages/ListaMonitores';
 
+// Importa componentes de autenticação
+import { AuthProvider } from './contexts/AuthContext';
+import { useAuth } from './hooks/useAuth';
+import Login from './components/Login';
+import ProtectedRoute from './components/ProtectedRoute';
+import Nav from './components/Nav';
+
 // URL base do seu backend (o servidor Express rodará na porta 3001)
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:3001/api'; 
 
@@ -23,6 +30,8 @@ const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:300
  * Permite ao usuário buscar dados de qualquer tabela permitida.
  */
 const ConsultaGeral = ({ setPage }) => {
+    const { makeAuthenticatedRequest } = useAuth();
+    
     // Estado para a consulta
     const [tableName, setTableName] = useState('');
     const [data, setData] = useState([]);
@@ -45,17 +54,8 @@ const ConsultaGeral = ({ setPage }) => {
         setStatus(`Conectando ao backend e consultando a tabela ${tableName}...`);
 
         try {
-            // Rota CORRIGIDA para /api/dados/:tableName (usando o global API_BASE_URL)
-            const url = `${API_BASE_URL}/dados/${tableName}`;
-            const response = await fetch(url);
-
-            if (!response.ok) {
-                // Tenta ler o erro do corpo da resposta, que pode ser HTML ou texto.
-                const errorText = await response.text(); 
-                throw new Error(`Erro ${response.status}: ${errorText.substring(0, 100)}...`);
-            }
-
-            const jsonData = await response.json();
+            // Rota CORRIGIDA para /api/dados/:tableName usando autenticação
+            const jsonData = await makeAuthenticatedRequest(`/dados/${tableName}`);
 
             if (jsonData.length === 0) {
                 setStatus("⚠️ Nenhum dado encontrado.");
@@ -213,6 +213,7 @@ const ConsultaGeral = ({ setPage }) => {
  * Componente simples para a página inicial (Home) - redesign com cards.
  */
 const Home = ({ pingStatus }) => {
+    const { hasPermission } = useAuth();
     const statusColor = pingStatus.startsWith('✅') ? 'text-green-700' : pingStatus.startsWith('❌') ? 'text-red-700' : 'text-yellow-700';
 
     const cards = [
@@ -221,37 +222,46 @@ const Home = ({ pingStatus }) => {
             desc: 'Consulte qualquer tabela do banco (Monitor, Area, Familia, Membro).',
             to: '/consulta',
             color: '#2563eb',
-            icon: <Search />
+            icon: <Search />,
+            permission: null // Todos podem acessar
         },
         {
             title: 'Cadastro de Monitores',
             desc: 'Cadastre monitores responsáveis pelas entrevistas e monitoramento.',
             to: '/cadastro-monitor',
             color: '#059669',
-            icon: <User />
+            icon: <User />,
+            permission: ['admin', 'coordenador']
         },
         {
             title: 'Lista de Monitores',
             desc: 'Veja, edite ou exclua monitores cadastrados.',
             to: '/monitores',
             color: '#0ea5a4',
-            icon: <User />
+            icon: <User />,
+            permission: ['admin', 'coordenador']
         },
         {
             title: 'Cadastro Completo',
             desc: 'Cadastre famílias com endereço, membros e dados complementares.',
             to: '/cadastro',
             color: '#16a34a',
-            icon: <Save />
+            icon: <Save />,
+            permission: ['monitor', 'coordenador', 'admin']
         },
         {
             title: 'Lista de Famílias',
             desc: 'Visualize, edite ou exclua registros já cadastrados.',
             to: '/lista-familias',
             color: '#1e40af',
-            icon: <Clipboard />
+            icon: <Clipboard />,
+            permission: null // Todos podem acessar
         }
     ];
+
+    const visibleCards = cards.filter(card => 
+        !card.permission || hasPermission(card.permission)
+    );
 
     return (
         <div className="min-h-[calc(100vh-80px)] bg-gradient-to-br from-gray-50 to-blue-50 p-8">
@@ -268,7 +278,7 @@ const Home = ({ pingStatus }) => {
 
                 <section className="cards-section">
                     <div className="cards-grid">
-                        {cards.map((card) => (
+                        {visibleCards.map((card) => (
                             <Link key={card.to} to={card.to} className="card-link">
                                 <div className="card">
                                     <div className="card-top">
@@ -291,86 +301,21 @@ const Home = ({ pingStatus }) => {
 
 
 // ------------------------------------
-// 2. Componente de Navegação (Nav)
-// ------------------------------------
-
-const Nav = () => {
-    const navItems = [
-        { name: 'Home', path: '/' },
-        { name: 'Consulta Geral', path: '/consulta' },
-        { name: 'Cadastro Completo', path: '/cadastro' },
-        { name: 'Cadastro Monitores', path: '/cadastro-monitor' },
-        { name: 'Lista de Monitores', path: '/monitores' },
-        { name: '📋 Lista Famílias', path: '/lista-familias' },
-    // Testes do sistema removidos
-    ];
-    // Theme toggle state (persisted)
-    const [theme, setTheme] = React.useState(() => {
-        try {
-            return localStorage.getItem('cepas_theme') || 'light';
-        } catch (e) {
-            return 'light';
-        }
-    });
-
-    React.useEffect(() => {
-        try {
-            if (theme === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
-            else document.documentElement.removeAttribute('data-theme');
-            localStorage.setItem('cepas_theme', theme);
-        } catch (e) {
-            // ignore storage errors
-        }
-    }, [theme]);
-
-    const toggleTheme = () => setTheme(t => (t === 'dark' ? 'light' : 'dark'));
-
-    return (
-        <header className="bg-white shadow-lg sticky top-0 z-10">
-            <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-                <div className="text-2xl font-black text-blue-800">
-                    CEPAS
-                </div>
-                <div className="flex items-center gap-3">
-                    <div className="flex space-x-4 top-nav-container">
-                        {navItems.map((item) => (
-                            <Link
-                                key={item.path}
-                                to={item.path}
-                                className={`top-nav-link px-3 py-2 text-sm font-medium rounded-md transition duration-200 text-gray-700`}
-                            >
-                                {item.name}
-                            </Link>
-                        ))}
-                    </div>
-
-                    <button title="Alternar modo claro/escuro" onClick={toggleTheme} className="top-nav-toggle" style={{ marginLeft: 8 }}>
-                        {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
-                    </button>
-                </div>
-            </nav>
-        </header>
-    );
-};
-
-// ------------------------------------
 // 3. Componente Principal (App)
 // ------------------------------------
 
-const App = () => {
-    // Estado para gerenciar a página atual
-    const [currentPage, setCurrentPage] = useState('home');
+// Componente wrapper para verificar autenticação
+const AppContent = () => {
+    const { isAuthenticated, isLoading, makeAuthenticatedRequest } = useAuth();
+    
     // Estado para exibir o status do backend
     const [pingStatus, setPingStatus] = useState('⏳ Conectando...');
-    // Estado para controlar a edição de família
-    const [familiaEditandoId, setFamiliaEditandoId] = useState(null);
 
     // Função para verificar o status do backend
     const checkBackendStatus = async () => {
         try {
-            const response = await fetch(`${API_BASE_URL}/ping`);
-            const text = await response.text();
-            setPingStatus(text);
+            const response = await makeAuthenticatedRequest('/ping');
+            setPingStatus(response?.message || 'Backend conectado');
         } catch (error) {
             console.error("Erro ao conectar com o backend:", error);
             setPingStatus('❌ Backend indisponível (Erro de rede/CORS)');
@@ -380,59 +325,27 @@ const App = () => {
     // Executa o ping na montagem do componente
     useEffect(() => {
         checkBackendStatus();
-    }, []);
+    }, [makeAuthenticatedRequest]);
 
-    // Função para navegar para edição de família
-    const handleEditarFamilia = (idFamilia) => {
-        setFamiliaEditandoId(idFamilia);
-        setCurrentPage('editar-familia');
-    };
+    if (isLoading) {
+        return (
+            <div style={{ 
+                display: 'flex', 
+                justifyContent: 'center', 
+                alignItems: 'center', 
+                height: '100vh',
+                flexDirection: 'column',
+                gap: '20px'
+            }}>
+                <Loader className="animate-spin" size={48} />
+                <div>Verificando autenticação...</div>
+            </div>
+        );
+    }
 
-    // Função para voltar da edição para a lista
-    const handleVoltarParaLista = () => {
-        setFamiliaEditandoId(null);
-        setCurrentPage('lista-familias');
-    };
-
-    // Função para sucesso da edição
-    const handleSucessoEdicao = () => {
-        setFamiliaEditandoId(null);
-        setCurrentPage('lista-familias');
-    };
-
-    // Função para renderizar a página correta baseada no estado
-    const renderPage = () => {
-        switch (currentPage) {
-            case 'home':
-                return <Home setCurrentPage={setCurrentPage} pingStatus={pingStatus} />;
-            case 'consulta':
-                // A ConsultaGeral agora usa o código do seu Consulta.js
-                return <ConsultaGeral setPage={setCurrentPage} />;
-            case 'cadastro':
-                // Novo cadastro completo
-                return <CadastroFamilia />;
-            case 'lista-familias':
-                // Lista e gerenciamento de famílias
-                return <ListaFamilias onEditarFamilia={handleEditarFamilia} />;
-            case 'editar-familia':
-                // Edição de família
-                return (
-                    <EditarFamilia 
-                        familiaId={familiaEditandoId}
-                        onVoltar={handleVoltarParaLista}
-                        onSucesso={handleSucessoEdicao}
-                    />
-                );
-            // caso 'cadastro-antigo' removido
-            // caso 'teste' removido
-            default:
-                return (
-                    <div className="p-8 text-center min-h-[calc(100vh-80px)] flex items-center justify-center">
-                        <h1 className="text-4xl text-red-600 font-bold">404 - Página não encontrada</h1>
-                    </div>
-                );
-        }
-    };
+    if (!isAuthenticated) {
+        return <Login />;
+    }
 
     function EditarFamiliaWrapper(props) {
         const { id } = useParams();
@@ -440,21 +353,64 @@ const App = () => {
     }
 
     return (
-        <BrowserRouter>
-            <Nav currentPage={null} setPage={() => {}} />
+        <>
+            <Nav />
             <main>
                 <Routes>
-                    <Route path="/" element={<Home setPage={() => {}} pingStatus={pingStatus} />} />
-                    <Route path="/consulta" element={<ConsultaGeral setPage={() => {}} />} />
-                    <Route path="/cadastro" element={<CadastroFamilia />} />
-                    <Route path="/cadastro-monitor" element={<CadastroMonitor />} />
-                    <Route path="/monitores" element={<ListaMonitores />} />
+                    <Route path="/" element={<Home pingStatus={pingStatus} />} />
+                    <Route path="/consulta" element={<ConsultaGeral />} />
+                    
+                    {/* Rotas protegidas para criação/edição */}
+                    <Route 
+                        path="/cadastro" 
+                        element={
+                            <ProtectedRoute requiredRoles={['monitor', 'coordenador', 'admin']}>
+                                <CadastroFamilia />
+                            </ProtectedRoute>
+                        } 
+                    />
+                    <Route 
+                        path="/cadastro-monitor" 
+                        element={
+                            <ProtectedRoute requiredRoles={['coordenador', 'admin']}>
+                                <CadastroMonitor />
+                            </ProtectedRoute>
+                        } 
+                    />
+                    <Route 
+                        path="/monitores" 
+                        element={
+                            <ProtectedRoute requiredRoles={['coordenador', 'admin']}>
+                                <ListaMonitores />
+                            </ProtectedRoute>
+                        } 
+                    />
+                    
+                    {/* Rotas de visualização */}
                     <Route path="/lista-familias" element={<ListaFamilias />} />
-                    <Route path="/editar-familia/:id" element={<EditarFamiliaWrapper />} />
+                    <Route 
+                        path="/editar-familia/:id" 
+                        element={
+                            <ProtectedRoute requiredRoles={['monitor', 'coordenador', 'admin']}>
+                                <EditarFamiliaWrapper />
+                            </ProtectedRoute>
+                        } 
+                    />
+                    
                     <Route path="*" element={<Navigate to="/" />} />
                 </Routes>
             </main>
-        </BrowserRouter>
+        </>
+    );
+};
+
+const App = () => {
+    return (
+        <AuthProvider>
+            <BrowserRouter>
+                <AppContent />
+            </BrowserRouter>
+        </AuthProvider>
     );
 };
 

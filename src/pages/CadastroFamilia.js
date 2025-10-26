@@ -1,8 +1,10 @@
 // src/pages/CadastroFamilia.js
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../hooks/useAuth';
 import Formulario from '../components/Formulario';
 
 const CadastroFamilia = () => {
+    const { makeAuthenticatedRequest } = useAuth();
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState({ text: '', type: '' });
     const [connectionStatus, setConnectionStatus] = useState('testing');
@@ -11,19 +13,14 @@ const CadastroFamilia = () => {
     useEffect(() => {
         const testConnection = async () => {
             try {
-                const pingUrl = `${process.env.REACT_APP_API_BASE_URL || 'http://localhost:3001/api'}/ping`;
-                const response = await fetch(pingUrl);
-                if (response.ok) {
-                    setConnectionStatus('connected');
-                } else {
-                    setConnectionStatus('error');
-                }
+                await makeAuthenticatedRequest('/ping');
+                setConnectionStatus('connected');
             } catch (error) {
                 setConnectionStatus('error');
             }
         };
         testConnection();
-    }, []);
+    }, [makeAuthenticatedRequest]);
 
     const handleSave = async (dadosDaFamilia) => {
         setLoading(true);
@@ -31,56 +28,30 @@ const CadastroFamilia = () => {
         
         try {
             console.log('=== INICIANDO CADASTRO ===');
-            console.log('URL da API:', process.env.REACT_APP_API_BASE_URL || 'http://localhost:3001/api');
             console.log('Dados da família sendo enviados:', JSON.stringify(dadosDaFamilia, null, 2));
             
             // Teste de conectividade primeiro
-            const pingUrl = `${process.env.REACT_APP_API_BASE_URL || 'http://localhost:3001/api'}/ping`;
-            console.log('Testando conectividade com:', pingUrl);
+            console.log('Testando conectividade...');
             
-            const pingResponse = await fetch(pingUrl);
-            console.log('Status do ping:', pingResponse.status);
+            const pingResponse = await makeAuthenticatedRequest('/ping');
+            console.log('Status do ping:', pingResponse);
             
-            if (!pingResponse.ok) {
-                throw new Error('Backend não está respondendo. Verifique se o servidor está rodando.');
-            }
+            // Fazer requisição de cadastro
+            console.log('Iniciando cadastro da família...');
             
-            // Fazer requisição direta para debug
-            const url = `${process.env.REACT_APP_API_BASE_URL || 'http://localhost:3001/api'}/familia-completa`;
-            console.log('URL de cadastro:', url);
-            
-            const response = await fetch(url, {
+            const response = await makeAuthenticatedRequest('/familia-completa', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'x-user': 'usuario_teste'
+                    'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(dadosDaFamilia),
+                body: JSON.stringify(dadosDaFamilia)
             });
             
-            console.log('Status da resposta:', response.status);
-            console.log('Headers da resposta:', Object.fromEntries(response.headers.entries()));
-            
-            const responseText = await response.text();
-            console.log('Resposta raw:', responseText);
-            
-            if (!response.ok) {
-                let errorDetail = responseText;
-                try {
-                    const errorJson = JSON.parse(responseText);
-                    errorDetail = errorJson.message || errorJson.error || responseText;
-                } catch (e) {
-                    // responseText já está definido
-                }
-                throw new Error(`Erro ${response.status}: ${errorDetail}`);
-            }
-            
-            const resposta = JSON.parse(responseText);
-            console.log('=== RESPOSTA DO BACKEND PARSED ===');
-            console.log('Resposta completa:', resposta);
+            console.log('=== RESPOSTA DO BACKEND ===');
+            console.log('Resposta completa:', response);
             
             setMessage({
-                text: `🎉 Família cadastrada com sucesso! ID: ${resposta.id_familia || resposta.ID}`,
+                text: `🎉 Família cadastrada com sucesso! ID: ${response.id_familia || response.ID}`,
                 type: 'success'
             });
             
