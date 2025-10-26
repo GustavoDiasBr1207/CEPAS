@@ -368,6 +368,13 @@ export function validateEntrevistaData(entrevista) {
         errors.push('Telefone de contato deve ter no máximo 30 caracteres');
     }
 
+    // entrevistador_id (opcional) deve ser numérico quando informado
+    if (entrevista.entrevistador_id !== undefined && entrevista.entrevistador_id !== null && String(entrevista.entrevistador_id).trim() !== '') {
+        if (isNaN(Number(entrevista.entrevistador_id))) {
+            errors.push('Identificador do entrevistador (monitor) é inválido');
+        }
+    }
+
     return {
         isValid: errors.length === 0,
         errors

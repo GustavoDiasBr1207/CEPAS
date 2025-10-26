@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useParams, Navigate, Link } from 'react-router-dom';
 // Importa ícones necessários para o componente Consulta e Cadastro
-import { Search, Loader, Zap, AlertTriangle, CheckCircle, Save } from 'lucide-react';
+import { Search, Loader, Zap, AlertTriangle, CheckCircle, Save, Clipboard, User, Sun, Moon } from 'lucide-react';
+import './Home.css';
 
 // Importa os novos componentes
 import CadastroFamilia from './pages/CadastroFamilia';
 import ListaFamilias from './pages/ListaFamilias';
 import EditarFamilia from './pages/EditarFamilia';
-import TesteCadastro from './components/TesteCadastro';
+import CadastroMonitor from './pages/CadastroMonitor';
+import ListaMonitores from './pages/ListaMonitores';
 
 // URL base do seu backend (o servidor Express rodará na porta 3001)
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:3001/api'; 
@@ -205,241 +207,83 @@ const ConsultaGeral = ({ setPage }) => {
     );
 };
 
-/**
- * Componente funcional para o Cadastro de Família (ANTIGO - mantido para compatibilidade).
- * O novo cadastro completo está em CadastroFamilia.js
- */
-const CadastroFamiliaAntigo = ({ setPage }) => {
-    // Estado para os dados do formulário
-    const [formData, setFormData] = useState({
-        NOME_CHEFE: '',
-        RENDA_FAMILIAR: '', // Receberá string, será convertido para número
-        ENDERECO: '',
-        ID_AREA: '', // Receberá string, será convertido para número
-    });
-
-    // Estado para o status da operação
-    const [loading, setLoading] = useState(false);
-    const [status, setStatus] = useState(
-        "Preencha os campos abaixo para cadastrar uma nova família."
-    );
-
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
-    };
-
-    // Função auxiliar para renderizar o status
-    const renderStatus = () => {
-        let icon;
-        let colorClass;
-        if (status.startsWith('❌')) {
-            icon = <AlertTriangle className="mr-2" />;
-            colorClass = 'text-red-600';
-        } else if (status.startsWith('✅')) {
-            icon = <CheckCircle className="mr-2" />;
-            colorClass = 'text-green-600';
-        } else if (status.startsWith('⚠️')) {
-            icon = <AlertTriangle className="mr-2" />;
-            colorClass = 'text-yellow-600';
-        } else {
-            icon = <Zap className="mr-2" />;
-            colorClass = 'text-gray-700';
-        }
-
-        return (
-            <p className={`mt-4 font-semibold flex items-center ${colorClass}`}>
-                {icon}
-                {status}
-            </p>
-        );
-    };
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setLoading(true);
-        setStatus("Enviando dados para o backend...");
-
-        const tableName = 'FAMILIA';
-
-        // Converte valores numéricos
-        const payload = {
-            ...formData,
-            RENDA_FAMILIAR: parseFloat(formData.RENDA_FAMILIAR) || null,
-            ID_AREA: parseInt(formData.ID_AREA, 10) || null,
-        };
-
-        try {
-            const url = `${API_BASE_URL}/dados/${tableName}`;
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(payload),
-            });
-
-            if (response.status === 409) {
-                setStatus("⚠️ Erro: Conflito de ID. O ID_FAMILIA já existe no banco de dados.");
-            } else if (!response.ok) {
-                const errorText = await response.text(); 
-                throw new Error(`Erro ${response.status}: ${errorText.substring(0, 100)}...`);
-            } else {
-                // Sucesso (201 Created)
-                const result = await response.json();
-                setStatus(`✅ Família cadastrada com sucesso! ID Gerado/Usado: ${result.ID}`);
-                
-                // Limpa o formulário após o sucesso
-                setFormData({
-                    NOME_CHEFE: '',
-                    RENDA_FAMILIAR: '',
-                    ENDERECO: '',
-                    ID_AREA: '',
-                });
-            }
-
-        } catch (err) {
-            console.error(err);
-            setStatus(`❌ Erro no cadastro! Detalhes: ${err.message}`);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    return (
-        <div className="p-4 sm:p-8 min-h-screen bg-gradient-to-br from-gray-50 to-green-100 flex flex-col items-center font-sans">
-            <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-3xl w-full max-w-lg transition-all duration-300">
-                <h1 className="text-4xl font-black mb-6 text-center text-green-800 flex items-center justify-center">
-                    <Save className="h-8 w-8 mr-3 text-green-600" />
-                    Cadastro de Família
-                </h1>
-                <p className="text-center text-gray-600 mb-6">
-                    Insira as informações da nova família para cadastrar na tabela FAMILIA.
-                </p>
-                
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    
-                    {/* Campo NOME_CHEFE */}
-                    <label className="block">
-                        <span className="text-gray-700 font-medium">Nome do Chefe de Família (NOME_CHEFE)</span>
-                        <input
-                            type="text"
-                            name="NOME_CHEFE"
-                            value={formData.NOME_CHEFE}
-                            onChange={handleChange}
-                            required
-                            className="mt-1 block w-full border-2 border-gray-300 p-3 rounded-lg focus:border-green-500 focus:ring-green-500/50 transition duration-200 shadow-inner"
-                            disabled={loading}
-                        />
-                    </label>
-
-                    {/* Campo RENDA_FAMILIAR */}
-                    <label className="block">
-                        <span className="text-gray-700 font-medium">Renda Familiar (RENDA_FAMILIAR)</span>
-                        <input
-                            type="number"
-                            name="RENDA_FAMILIAR"
-                            value={formData.RENDA_FAMILIAR}
-                            onChange={handleChange}
-                            step="0.01"
-                            placeholder="Ex: 2500.50"
-                            required
-                            className="mt-1 block w-full border-2 border-gray-300 p-3 rounded-lg focus:border-green-500 focus:ring-green-500/50 transition duration-200 shadow-inner"
-                            disabled={loading}
-                        />
-                    </label>
-
-                    {/* Campo ENDERECO */}
-                    <label className="block">
-                        <span className="text-gray-700 font-medium">Endereço (ENDERECO)</span>
-                        <input
-                            type="text"
-                            name="ENDERECO"
-                            value={formData.ENDERECO}
-                            onChange={handleChange}
-                            required
-                            className="mt-1 block w-full border-2 border-gray-300 p-3 rounded-lg focus:border-green-500 focus:ring-green-500/50 transition duration-200 shadow-inner"
-                            disabled={loading}
-                        />
-                    </label>
-
-                    {/* Campo ID_AREA */}
-                    <label className="block">
-                        <span className="text-gray-700 font-medium">ID da Área (ID_AREA - Chave Estrangeira)</span>
-                        <input
-                            type="number"
-                            name="ID_AREA"
-                            value={formData.ID_AREA}
-                            onChange={handleChange}
-                            required
-                            className="mt-1 block w-full border-2 border-gray-300 p-3 rounded-lg focus:border-green-500 focus:ring-green-500/50 transition duration-200 shadow-inner"
-                            disabled={loading}
-                        />
-                    </label>
-                    
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className="w-full bg-green-600 text-white font-extrabold px-8 py-3 rounded-xl shadow-lg transition-all duration-300 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center text-lg"
-                    >
-                        {loading ? (
-                            <>
-                                <Loader className="h-5 w-5 mr-2 animate-spin" />
-                                Cadastrando...
-                            </>
-                        ) : (
-                            <>
-                                <Save className="h-5 w-5 mr-2" />
-                                Salvar Família
-                            </>
-                        )}
-                    </button>
-                </form>
-
-                {renderStatus()}
-
-                <button 
-                    onClick={() => setPage('home')} 
-                    className="mt-8 bg-gray-200 text-gray-700 px-6 py-2 rounded-lg shadow hover:bg-gray-300 transition-colors font-medium w-full"
-                >
-                    Voltar para Home
-                </button>
-            </div>
-        </div>
-    );
-};
+/* Cadastro antigo removido. O novo cadastro completo permanece em `./pages/CadastroFamilia.js`. */
 
 /**
- * Componente simples para a página inicial (Home).
+ * Componente simples para a página inicial (Home) - redesign com cards.
  */
 const Home = ({ pingStatus }) => {
-    // Estilos dinâmicos para o status do ping
-    const statusColor = pingStatus.startsWith('✅') ? 'bg-green-100 text-green-700 border-green-400' : 
-                        pingStatus.startsWith('❌') ? 'bg-red-100 text-red-700 border-red-400' :
-                        'bg-yellow-100 text-yellow-700 border-yellow-400';
+    const statusColor = pingStatus.startsWith('✅') ? 'text-green-700' : pingStatus.startsWith('❌') ? 'text-red-700' : 'text-yellow-700';
+
+    const cards = [
+        {
+            title: 'Consulta Geral',
+            desc: 'Consulte qualquer tabela do banco (Monitor, Area, Familia, Membro).',
+            to: '/consulta',
+            color: '#2563eb',
+            icon: <Search />
+        },
+        {
+            title: 'Cadastro de Monitores',
+            desc: 'Cadastre monitores responsáveis pelas entrevistas e monitoramento.',
+            to: '/cadastro-monitor',
+            color: '#059669',
+            icon: <User />
+        },
+        {
+            title: 'Lista de Monitores',
+            desc: 'Veja, edite ou exclua monitores cadastrados.',
+            to: '/monitores',
+            color: '#0ea5a4',
+            icon: <User />
+        },
+        {
+            title: 'Cadastro Completo',
+            desc: 'Cadastre famílias com endereço, membros e dados complementares.',
+            to: '/cadastro',
+            color: '#16a34a',
+            icon: <Save />
+        },
+        {
+            title: 'Lista de Famílias',
+            desc: 'Visualize, edite ou exclua registros já cadastrados.',
+            to: '/lista-familias',
+            color: '#1e40af',
+            icon: <Clipboard />
+        }
+    ];
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-[calc(100vh-80px)] bg-gray-50 p-4">
-            <div className="bg-white p-10 rounded-xl shadow-2xl text-center max-w-md w-full border border-gray-200">
-                <h1 className="text-4xl font-extrabold text-gray-900 mb-4">
-                    Bem-vindo ao Sistema CEPAS!
-                </h1>
-                <p className="text-lg text-gray-600 mb-6">
-                    A plataforma de gestão integrada para Monitoramento Social.
-                </p>
-                
-                {/* Status do Backend */}
-                <div className={`p-3 border rounded-lg font-semibold text-sm mb-6 ${statusColor}`}>
-                    Status do Backend: {pingStatus}
-                </div>
+        <div className="min-h-[calc(100vh-80px)] bg-gradient-to-br from-gray-50 to-blue-50 p-8">
+            <div className="max-w-6xl mx-auto">
+                <header className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                    <div>
+                        <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900">Bem-vindo ao Sistema CEPAS!</h1>
+                        <p className="text-gray-600 mt-2">A plataforma de gestão integrada para Monitoramento Social.</p>
+                    </div>
+                    <div className="mt-3 md:mt-0">
+                        <div className={`inline-block px-4 py-2 border rounded-lg font-semibold ${statusColor} bg-white/80`}>Status do Backend: <span className="font-bold">{pingStatus}</span></div>
+                    </div>
+                </header>
 
-                <div className="space-y-4">
-                    <Link to="/consulta" className="w-full block bg-blue-600 text-white px-6 py-3 rounded-lg font-bold shadow-md transition-all duration-300 hover:bg-blue-700 transform hover:scale-[1.02] text-center">Acessar Consulta Geral</Link>
-                    <Link to="/cadastro" className="w-full block bg-green-600 text-white px-6 py-3 rounded-lg font-bold shadow-md transition-all duration-300 hover:bg-green-700 transform hover:scale-[1.02] text-center">Cadastro Completo de Família</Link>
-                    <Link to="/lista-familias" className="w-full block bg-blue-800 text-white px-6 py-3 rounded-lg font-bold shadow-md transition-all duration-300 hover:bg-blue-900 transform hover:scale-[1.02] text-center">📋 Lista Famílias</Link>
-                    <Link to="/cadastro-antigo" className="w-full block bg-yellow-600 text-white px-6 py-3 rounded-lg font-bold shadow-md transition-all duration-300 hover:bg-yellow-700 transform hover:scale-[1.02] text-center">Cadastro Antigo (Simples)</Link>
-                    <Link to="/teste" className="w-full block bg-purple-600 text-white px-6 py-3 rounded-lg font-bold shadow-md transition-all duration-300 hover:bg-purple-700 transform hover:scale-[1.02] text-center">🧪 Testes do Sistema</Link>
-                </div>
+                <section className="cards-section">
+                    <div className="cards-grid">
+                        {cards.map((card) => (
+                            <Link key={card.to} to={card.to} className="card-link">
+                                <div className="card">
+                                    <div className="card-top">
+                                        <div className="card-icon" style={{ backgroundColor: card.color }}>{card.icon}</div>
+                                        <div className="card-go">Ir →</div>
+                                    </div>
+                                    <h3 className="card-title">{card.title}</h3>
+                                    <p className="card-desc">{card.desc}</p>
+                                </div>
+                            </Link>
+                        ))}
+                    </div>
+                </section>
+
+                <footer className="mt-10 text-sm text-gray-500">Use os cartões acima para navegar rapidamente pelas principais funcionalidades.</footer>
             </div>
         </div>
     );
@@ -455,26 +299,54 @@ const Nav = () => {
         { name: 'Home', path: '/' },
         { name: 'Consulta Geral', path: '/consulta' },
         { name: 'Cadastro Completo', path: '/cadastro' },
+        { name: 'Cadastro Monitores', path: '/cadastro-monitor' },
+        { name: 'Lista de Monitores', path: '/monitores' },
         { name: '📋 Lista Famílias', path: '/lista-familias' },
-        { name: 'Cadastro Antigo', path: '/cadastro-antigo' },
-        { name: '🧪 Testes', path: '/teste' },
+    // Testes do sistema removidos
     ];
+    // Theme toggle state (persisted)
+    const [theme, setTheme] = React.useState(() => {
+        try {
+            return localStorage.getItem('cepas_theme') || 'light';
+        } catch (e) {
+            return 'light';
+        }
+    });
+
+    React.useEffect(() => {
+        try {
+            if (theme === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+            else document.documentElement.removeAttribute('data-theme');
+            localStorage.setItem('cepas_theme', theme);
+        } catch (e) {
+            // ignore storage errors
+        }
+    }, [theme]);
+
+    const toggleTheme = () => setTheme(t => (t === 'dark' ? 'light' : 'dark'));
+
     return (
         <header className="bg-white shadow-lg sticky top-0 z-10">
             <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
                 <div className="text-2xl font-black text-blue-800">
                     CEPAS
                 </div>
-                <div className="flex space-x-4">
-                    {navItems.map((item) => (
-                        <Link
-                            key={item.path}
-                            to={item.path}
-                            className={`px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 text-gray-600 hover:bg-gray-100 hover:text-blue-600`}
-                        >
-                            {item.name}
-                        </Link>
-                    ))}
+                <div className="flex items-center gap-3">
+                    <div className="flex space-x-4 top-nav-container">
+                        {navItems.map((item) => (
+                            <Link
+                                key={item.path}
+                                to={item.path}
+                                className={`top-nav-link px-3 py-2 text-sm font-medium rounded-md transition duration-200 text-gray-700`}
+                            >
+                                {item.name}
+                            </Link>
+                        ))}
+                    </div>
+
+                    <button title="Alternar modo claro/escuro" onClick={toggleTheme} className="top-nav-toggle" style={{ marginLeft: 8 }}>
+                        {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+                    </button>
                 </div>
             </nav>
         </header>
@@ -551,31 +423,8 @@ const App = () => {
                         onSucesso={handleSucessoEdicao}
                     />
                 );
-            case 'cadastro-antigo':
-                // Cadastro antigo mantido para compatibilidade
-                return <CadastroFamiliaAntigo setPage={setCurrentPage} />;
-            case 'teste':
-                // Componente de testes
-                return (
-                    <div>
-                        <TesteCadastro />
-                        <button 
-                            onClick={() => setCurrentPage('home')}
-                            style={{
-                                margin: '20px auto',
-                                display: 'block',
-                                padding: '10px 20px',
-                                backgroundColor: '#6c757d',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '4px',
-                                cursor: 'pointer'
-                            }}
-                        >
-                            Voltar para Home
-                        </button>
-                    </div>
-                );
+            // caso 'cadastro-antigo' removido
+            // caso 'teste' removido
             default:
                 return (
                     <div className="p-8 text-center min-h-[calc(100vh-80px)] flex items-center justify-center">
@@ -598,6 +447,8 @@ const App = () => {
                     <Route path="/" element={<Home setPage={() => {}} pingStatus={pingStatus} />} />
                     <Route path="/consulta" element={<ConsultaGeral setPage={() => {}} />} />
                     <Route path="/cadastro" element={<CadastroFamilia />} />
+                    <Route path="/cadastro-monitor" element={<CadastroMonitor />} />
+                    <Route path="/monitores" element={<ListaMonitores />} />
                     <Route path="/lista-familias" element={<ListaFamilias />} />
                     <Route path="/editar-familia/:id" element={<EditarFamiliaWrapper />} />
                     <Route path="*" element={<Navigate to="/" />} />

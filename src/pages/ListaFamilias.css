@@ -1,5 +1,41 @@
 /* Estilos específicos para Lista de Famílias */
 
+/* Common page container used by cadastro pages */
+.formulario-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.formulario-header {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.formulario-header h1 {
+    color: #2c5aa0;
+    margin-bottom: 6px;
+    font-size: 28px;
+}
+
+.formulario-header p {
+    color: #666;
+    font-size: 15px;
+    margin: 0 auto;
+}
+
+.connection-status {
+    display: inline-block;
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-weight: 600;
+}
+
+.connection-status.testing { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+.connection-status.connected { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+.connection-status.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+
+
 .familias-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
@@ -227,6 +263,59 @@
     background: #fdeaea;
     color: #e74c3c;
     border-left: 4px solid #e74c3c;
+}
+
+/* Modal styles for edit dialog used by ListaMonitores */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1200;
+    padding: 20px;
+}
+
+.modal {
+    background: #fff;
+    border-radius: 12px;
+    width: 640px;
+    max-width: 100%;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    padding: 20px 22px;
+}
+
+.modal h2 {
+    margin: 0 0 10px 0;
+    color: #2c3e50;
+}
+
+.modal-form label {
+    display: block;
+    margin-bottom: 10px;
+    color: #34495e;
+    font-size: 14px;
+}
+
+.modal-form input[type="text"],
+.modal-form input[type="email"],
+.modal-form textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #e6eef6;
+    border-radius: 8px;
+    margin-top: 6px;
+    box-sizing: border-box;
+}
+
+.modal-form textarea { min-height: 90px; resize: vertical; }
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 14px;
 }
 
 /* Responsividade */

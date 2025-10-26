@@ -11,3 +11,79 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+/* Theme variables: default (light) and dark variant via [data-theme="dark"] */
+:root {
+  --bg: #f8fbff; /* page background */
+  --surface: #ffffff; /* cards, panels */
+  --text: #1f2d3d; /* main text */
+  --muted: #6b7280; /* secondary text */
+  --primary: #2563eb; /* primary actions / highlights */
+  --accent: #06b6d4; /* accent */
+  --danger: #e11d48;
+  --success: #059669;
+  --card-border: rgba(16,24,40,0.04);
+  --nav-bg: rgba(255,255,255,0.9);
+  --toggle-bg: rgba(0,0,0,0.06);
+}
+
+[data-theme="dark"] {
+  --bg: #0b1220;
+  --surface: #0f1724;
+  --text: #e6eef6;
+  --muted: #93c5fd;
+  --primary: #60a5fa;
+  --accent: #34d399;
+  --danger: #fb7185;
+  --success: #34d399;
+  --card-border: rgba(255,255,255,0.04);
+  --nav-bg: rgba(8,10,15,0.6);
+  --toggle-bg: rgba(255,255,255,0.06);
+}
+
+/* Global elements that should adapt to the theme */
+body {
+  background: var(--bg);
+  color: var(--text);
+}
+
+header, .top-nav-container, .top-nav-link {
+  background: transparent;
+}
+
+.top-nav-link {
+  color: var(--text) !important;
+  background: var(--nav-bg);
+}
+
+.card, .familia-card, .empty-state, .loading-message, .message, .modal {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border-color: var(--card-border) !important;
+}
+
+.card-icon { background: var(--primary) !important; }
+
+.familia-id { background: var(--primary) !important; }
+
+.btn-edit { background: linear-gradient(135deg, var(--primary), #21618c) !important; }
+.btn-danger { background: linear-gradient(135deg, var(--danger), #a93226) !important; }
+.btn-secondary { background: linear-gradient(135deg, #95a5a6, #7f8c8d) !important; }
+
+.message.success { background: rgba(52,211,153,0.12); color: var(--success); border-left-color: var(--success); }
+.message.error { background: rgba(239,68,68,0.08); color: var(--danger); border-left-color: var(--danger); }
+
+.top-nav-toggle {
+  background: var(--toggle-bg);
+  border: none;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Ensure modal overlay sits above dark backgrounds */
+.modal-overlay { background: rgba(0,0,0,0.5); }
+

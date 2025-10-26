@@ -271,6 +271,28 @@ router.post('/familia-completa', async (req, res) => {
             };
             idEntrevista = await insertRecord('Entrevista', dadosEntrevista);
             console.log('Entrevista inserida com ID:', idEntrevista);
+            // Se foi informado um entrevistador (monitor), vincular no relacionamento EntrevistaMonitor
+            try {
+                const entrevistadorId = dadosCompletos.entrevista.entrevistador_id || dadosCompletos.entrevista.entrevistador;
+                if (entrevistadorId !== undefined && entrevistadorId !== null && String(entrevistadorId).trim() !== '') {
+                    console.log(`Vinculando entrevistador (monitor) ID ${entrevistadorId} à entrevista ${idEntrevista} via SQL direto`);
+                    let conn;
+                    try {
+                        conn = await oracledb.getConnection(require('../dbConfig'));
+                        await conn.execute(
+                            `INSERT INTO EntrevistaMonitor (id_entrevista_monitor, id_entrevista, id_monitor)
+                             VALUES (seq_entrevistamonitor.NEXTVAL, :id_entrevista, :id_monitor)`,
+                            { id_entrevista: idEntrevista, id_monitor: entrevistadorId },
+                            { autoCommit: true }
+                        );
+                        console.log('Entrevistador vinculado com sucesso (INSERT via sequence)');
+                    } finally {
+                        if (conn) await conn.close();
+                    }
+                }
+            } catch (err) {
+                console.log('⚠️ Não foi possível vincular entrevistador à entrevista via SQL direto:', err.message);
+            }
         }
 
         // Buscar e retornar o objeto completo da família cadastrada
@@ -520,10 +542,15 @@ router.get('/familia/:id', async (req, res) => {
         `, { id });
 
         // Última entrevista da família (prefill opcional)
+        // Join com EntrevistaMonitor e Monitor para trazer também o monitor que realizou a entrevista (se houver)
         const entrevistaRows = await fetchTableData('Entrevista', `
             SELECT * FROM (
-                SELECT e.*, ROW_NUMBER() OVER (PARTITION BY e.id_familia ORDER BY e.data_entrevista DESC, e.id_entrevista DESC) rn
-                FROM Entrevista e WHERE e.id_familia = :id
+                SELECT e.*, em.id_monitor AS ID_MONITOR, m.nome AS ENTREVISTADOR_NOME,
+                       ROW_NUMBER() OVER (PARTITION BY e.id_familia ORDER BY e.data_entrevista DESC, e.id_entrevista DESC) rn
+                FROM Entrevista e
+                LEFT JOIN EntrevistaMonitor em ON e.id_entrevista = em.id_entrevista
+                LEFT JOIN Monitor m ON em.id_monitor = m.id_monitor
+                WHERE e.id_familia = :id
             ) WHERE rn = 1
         `, { id });
 
@@ -592,10 +619,13 @@ router.get('/familia/:id', async (req, res) => {
         });
 
         const entrevista = entrevistaRows && entrevistaRows[0] ? {
+            id_entrevista: entrevistaRows[0].ID_ENTREVISTA || null,
             data_entrevista: fmt(entrevistaRows[0].DATA_ENTREVISTA) || '',
             entrevistado: entrevistaRows[0].ENTREVISTADO || '',
             telefone_contato: entrevistaRows[0].TELEFONE_CONTATO || '',
-            observacoes: entrevistaRows[0].OBSERVACOES || ''
+            observacoes: entrevistaRows[0].OBSERVACOES || '',
+            entrevistador_id: entrevistaRows[0].ID_MONITOR || entrevistaRows[0].ID_MON || null,
+            entrevistador_nome: entrevistaRows[0].ENTREVISTADOR_NOME || null
         } : null;
 
         const dadosCompletos = {
@@ -646,7 +676,9 @@ router.get('/familia/:id', async (req, res) => {
 
             // Membros e entrevista
             membros: membrosNorm,
-            entrevista
+            entrevista,
+            // incluir id da família para facilitar edições no frontend
+            id_familia: fam.ID_FAMILIA || null
         };
         
         console.log(`✅ Dados completos da família ID ${id} recuperados`);
@@ -688,6 +720,7 @@ router.put('/familia/:id', async (req, res) => {
     }
     
     try {
+        const usuario = req.headers['x-user'] || 'sistema_api';
         // Verifica se a família existe
         const familiaExiste = await fetchTableData('Familia', `SELECT id_familia FROM Familia WHERE id_familia = :id`, { id });
         
@@ -945,11 +978,60 @@ router.put('/familia/:id', async (req, res) => {
                     const rowsAffected = await updateRecord('Entrevista', entrevistaExiste[0].ID_ENTREVISTA, dadosEntrevista);
                     relatorio.Entrevista = `${rowsAffected} registros atualizados`;
                     totalAtualizados += rowsAffected;
+                    // também atualizar/ligar o entrevistador (monitor) se informado
+                    try {
+                        const entrevistaId = entrevistaExiste[0].ID_ENTREVISTA;
+                        const entrevistadorId = dadosCompletos.entrevista.entrevistador_id || dadosCompletos.entrevista.entrevistador;
+                        if (entrevistadorId !== undefined && entrevistadorId !== null && String(entrevistadorId).trim() !== '') {
+                            // Usar SQL direto: remover vínculos antigos e inserir o novo (mais robusto que insertRecord abstraction)
+                            let conn;
+                            try {
+                                conn = await oracledb.getConnection(require('../dbConfig'));
+                                // Deletar vínculos existentes
+                                await conn.execute(
+                                    `DELETE FROM EntrevistaMonitor WHERE id_entrevista = :id`,
+                                    { id: entrevistaId },
+                                    { autoCommit: true }
+                                );
+                                // Inserir novo vínculo usando a sequência
+                                await conn.execute(
+                                    `INSERT INTO EntrevistaMonitor (id_entrevista_monitor, id_entrevista, id_monitor)
+                                     VALUES (seq_entrevistamonitor.NEXTVAL, :id_entrevista, :id_monitor)`,
+                                    { id_entrevista: entrevistaId, id_monitor: entrevistadorId },
+                                    { autoCommit: true }
+                                );
+                            } finally {
+                                if (conn) await conn.close();
+                            }
+                        }
+                    } catch (err) {
+                        console.log('⚠️ Não foi possível atualizar o vínculo de entrevistador via SQL direto:', err.message);
+                    }
                 } else if (Object.keys(dadosEntrevista).length > 0) {
                     dadosEntrevista.id_familia = id;
                     const novoId = await insertRecord('Entrevista', dadosEntrevista);
                     relatorio.Entrevista = `Nova entrevista criada com ID ${novoId}`;
                     totalAtualizados += 1;
+                    // inserir vínculo de entrevistador se fornecido (usar SQL direto para maior robustez)
+                    try {
+                        const entrevistadorId = dadosCompletos.entrevista.entrevistador_id || dadosCompletos.entrevista.entrevistador;
+                        if (entrevistadorId !== undefined && entrevistadorId !== null && String(entrevistadorId).trim() !== '') {
+                            let conn;
+                            try {
+                                conn = await oracledb.getConnection(require('../dbConfig'));
+                                await conn.execute(
+                                    `INSERT INTO EntrevistaMonitor (id_entrevista_monitor, id_entrevista, id_monitor)
+                                     VALUES (seq_entrevistamonitor.NEXTVAL, :id_entrevista, :id_monitor)`,
+                                    { id_entrevista: novoId, id_monitor: entrevistadorId },
+                                    { autoCommit: true }
+                                );
+                            } finally {
+                                if (conn) await conn.close();
+                            }
+                        }
+                    } catch (err) {
+                        console.log('⚠️ Não foi possível inserir vínculo de entrevistador para a nova entrevista via SQL direto:', err.message);
+                    }
                 }
                 console.log(`✅ Entrevista: ${relatorio.Entrevista || 'Sem alterações'}`);
             } catch (err) {
@@ -1007,7 +1089,9 @@ router.get('/familias', async (req, res) => {
                     e.complemento,
                     ent.data_entrevista,
                     ent.entrevistado,
-                    ent.telefone_contato
+                    ent.telefone_contato,
+                    ent.id_entrevista,
+                    m.nome AS ENTREVISTADOR_NOME
                 FROM Familia f
                 LEFT JOIN Endereco e ON f.id_familia = e.id_familia
                 LEFT JOIN (
@@ -1024,6 +1108,8 @@ router.get('/familias', async (req, res) => {
                     ) t
                     WHERE t.rn = 1
                 ) ent ON f.id_familia = ent.id_familia
+                LEFT JOIN EntrevistaMonitor em ON ent.id_entrevista = em.id_entrevista
+                LEFT JOIN Monitor m ON em.id_monitor = m.id_monitor
                 ORDER BY f.created_at DESC
             `;
             
@@ -1119,11 +1205,12 @@ router.get('/familias', async (req, res) => {
                             familia.MIGRACAO && `(${familia.MIGRACAO})`
                         ].filter(Boolean).join(', ') || 'Não informado',
                         
-                        // Status da entrevista
-                        STATUS_ENTREVISTA: familia.DATA_ENTREVISTA ? 
+                        // Status da entrevista (data + entrevistado e entrevistador se disponíveis)
+                        STATUS_ENTREVISTA: familia.DATA_ENTREVISTA ? (
                             `✅ ${new Date(familia.DATA_ENTREVISTA).toLocaleDateString('pt-BR')}` + 
-                            (familia.ENTREVISTADO ? ` - ${familia.ENTREVISTADO}` : '') :
-                            '⏳ Pendente',
+                            (familia.ENTREVISTADO ? ` - ${familia.ENTREVISTADO}` : '') +
+                            (familia.ENTREVISTADOR_NOME ? ` - ${familia.ENTREVISTADOR_NOME}` : '')
+                        ) : '⏳ Pendente',
                         
                         // Contato
                         CONTATO: familia.TELEFONE_CONTATO || 'Não informado'
@@ -1226,9 +1313,23 @@ router.delete('/familia/:id', async (req, res) => {
                     } finally {
                         await conn.close();
                     }
+                } else if (tabela === 'CriancaCepas' || tabela === 'SaudeMembro') {
+                    // Estas tabelas referenciam membros (id_membro). Deletar por subconsulta
+                    const conn = await oracledb.getConnection(require('../dbConfig'));
+                    try {
+                        const result = await conn.execute(
+                            `DELETE FROM ${tabela} WHERE id_membro IN (
+                                SELECT id_membro FROM Membro WHERE id_familia = :id
+                             )`,
+                            { id }, { autoCommit: true }
+                        );
+                        rowsAffected = result.rowsAffected || 0;
+                    } finally {
+                        await conn.close();
+                    }
                 } else {
                     const idColumn = 'id_familia';
-                    // Entrevista possui id_familia diretamente, demais também
+                    // Entrevista e Membro possuem id_familia diretamente, demais também quando aplicável
                     rowsAffected = await deleteRecord(tabela, id, idColumn);
                 }
 

@@ -12,6 +12,9 @@ const ListaFamilias = () => {
     const [deletingId, setDeletingId] = useState(null);
     const [familiaEditando, setFamiliaEditando] = useState(null);
     const [editLoading, setEditLoading] = useState(false);
+    const [filterText, setFilterText] = useState('');
+    const [filterStatus, setFilterStatus] = useState('all');
+    const [filterField, setFilterField] = useState('all');
 
     const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:3001/api';
     const navigate = useNavigate();
@@ -164,9 +167,53 @@ const ListaFamilias = () => {
         return `R$ ${parseFloat(renda).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
     };
 
+    // Tenta extrair o nome do entrevistador do campo STATUS_ENTREVISTA quando
+    // ENTREVISTADOR_NOME não estiver presente (fallback para respostas antigas)
+    const extrairEntrevistadorDeStatus = (status) => {
+        if (!status || typeof status !== 'string') return null;
+        // O backend monta STATUS_ENTREVISTA como "✅ dd/mm/yyyy - entrevistado - entrevistador"
+        // Podemos tentar capturar o último segmento após ' - '
+        const parts = status.split(' - ').map(p => p.trim()).filter(Boolean);
+        if (parts.length >= 2) {
+            // último segmento é provavelmente o entrevistador
+            return parts[parts.length - 1];
+        }
+        return null;
+    };
+
     const handleEditarClick = (idFamilia) => {
         navigate(`/editar-familia/${idFamilia}`);
     };
+
+    // Filtragem local: texto e status
+    const filteredFamilias = familias.filter((f) => {
+        // Texto: buscar em campos selecionados
+        const q = filterText.trim().toLowerCase();
+        if (q) {
+            let hay = '';
+            if (filterField === 'all') {
+                hay = `${f.NOME_FAMILIA || ''} ${f.NOME_RESPONSAVEL || ''} ${f.ENDERECO_COMPLETO || ''} ${f.STATUS_ENTREVISTA || ''} ${f.ENTREVISTADOR_NOME || f.ENTREVISTADOR || ''}`;
+            } else if (filterField === 'entrevista') {
+                hay = `${f.STATUS_ENTREVISTA || ''} ${f.ENTREVISTADOR_NOME || f.ENTREVISTADOR || ''}`;
+            } else if (filterField === 'nome') {
+                hay = `${f.NOME_FAMILIA || ''}`;
+            } else if (filterField === 'responsavel') {
+                hay = `${f.NOME_RESPONSAVEL || ''}`;
+            } else if (filterField === 'endereco') {
+                hay = `${f.ENDERECO_COMPLETO || ''}`;
+            }
+            if (!hay.toLowerCase().includes(q)) return false;
+        }
+
+        // Status: pendente = sem DATA_ENTREVISTA, realizada = com DATA_ENTREVISTA
+        if (filterStatus === 'pendente') {
+            if (f.DATA_ENTREVISTA) return false;
+        } else if (filterStatus === 'realizada') {
+            if (!f.DATA_ENTREVISTA) return false;
+        }
+
+        return true;
+    });
 
     return (
         <div className="formulario-container">
@@ -184,6 +231,63 @@ const ListaFamilias = () => {
                 >
                     🔄 {loading ? 'Carregando...' : 'Recarregar Lista'}
                 </button>
+                {/* Filtros: busca por texto e status da entrevista */}
+                <div
+                    className="form-filters"
+                    style={{
+                        display: 'flex',
+                        gap: '8px',
+                        marginLeft: '12px',
+                        alignItems: 'center',
+                        background: '#fbfbfb',
+                        padding: '6px',
+                        borderRadius: '6px',
+                        border: '1px solid #eee'
+                    }}
+                >
+                    <input
+                        type="text"
+                        placeholder={
+                            filterField === 'all' ? 'Pesquisar nome, responsável, endereço ou entrevista...' :
+                            filterField === 'nome' ? 'Pesquisar por nome da família...' :
+                            filterField === 'responsavel' ? 'Pesquisar por responsável...' :
+                            filterField === 'entrevista' ? 'Pesquisar por status/entrevistador...' :
+                            'Pesquisar por endereço...'
+                        }
+                        value={filterText}
+                        onChange={(e) => setFilterText(e.target.value)}
+                        style={{ padding: '8px 10px', borderRadius: '6px', border: '1px solid #ddd', minWidth: '260px' }}
+                        aria-label="Campo de pesquisa"
+                    />
+
+                    <select value={filterField} onChange={(e) => setFilterField(e.target.value)} style={{ padding: '8px 10px', borderRadius: '6px', border: '1px solid #ddd' }} aria-label="Campo para pesquisar em">
+                        <option value="all">Pesquisar em: Todos</option>
+                        <option value="nome">Nome da família</option>
+                        <option value="responsavel">Responsável</option>
+                        <option value="endereco">Endereço</option>
+                        <option value="entrevista">Entrevista</option>
+                    </select>
+
+                    <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={{ padding: '8px 10px', borderRadius: '6px', border: '1px solid #ddd' }} aria-label="Filtro por status da entrevista">
+                        <option value="all">Todos os status</option>
+                        <option value="pendente">Entrevista pendente</option>
+                        <option value="realizada">Entrevista realizada</option>
+                    </select>
+
+                    <button
+                        onClick={() => { setFilterText(''); setFilterField('all'); setFilterStatus('all'); }}
+                        title="Limpar filtros"
+                        style={{
+                            padding: '8px 12px',
+                            borderRadius: '6px',
+                            border: '1px solid #ddd',
+                            background: '#fff',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        ✖ Limpar
+                    </button>
+                </div>
             </div>
 
             {/* Mensagens de status */}
@@ -228,9 +332,17 @@ const ListaFamilias = () => {
                 </div>
             )}
 
-            {!loading && familias.length > 0 && (
+            {/* Se existem famílias, mas nenhuma corresponde aos filtros, mostramos mensagem específica */}
+            {!loading && familias.length > 0 && filteredFamilias.length === 0 && (
+                <div className="empty-state">
+                    <h3>🔎 Nenhuma família corresponde aos filtros</h3>
+                    <p>Altere o texto de busca ou o status para encontrar famílias.</p>
+                </div>
+            )}
+
+            {!loading && filteredFamilias.length > 0 && (
                 <div className="familias-grid">
-                    {familias.map((familia) => (
+                    {filteredFamilias.map((familia) => (
                         <div key={familia.ID_FAMILIA} className="familia-card">
                             <div className="familia-header">
                                 <h3>👨‍👩‍👧‍👦 {familia.NOME_FAMILIA}</h3>
@@ -239,7 +351,7 @@ const ListaFamilias = () => {
 
                             <div className="familia-info">
                                 <div className="info-row">
-                                    <strong>� Responsável:</strong> 
+                                    <strong>Responsável:</strong> 
                                     <span>{familia.NOME_RESPONSAVEL || 'Não informado'}</span>
                                 </div>
 
@@ -247,6 +359,24 @@ const ListaFamilias = () => {
                                     <strong>📞 Contato:</strong> 
                                     <span>{familia.TELEFONE_CONTATO || familia.CONTATO || 'Não informado'}</span>
                                 </div>
+
+                                {/* Entrevistador (monitor) explícito - renderiza somente se houver dado */}
+                                {(() => {
+                                    // Preferência: ENTREVISTADOR_NOME (campo explícito)
+                                    const entrevistadorExpl = familia.ENTREVISTADOR_NOME || familia.ENTREVISTADOR || null;
+                                    // Fallback: tentar extrair do STATUS_ENTREVISTA
+                                    const entrevistadorFbd = entrevistadorExpl ? null : extrairEntrevistadorDeStatus(familia.STATUS_ENTREVISTA || familia.STATUS_ENTREVISTA);
+                                    const entrevistadorFinal = entrevistadorExpl || entrevistadorFbd;
+                                    if (entrevistadorFinal) {
+                                        return (
+                                            <div className="info-row">
+                                                <strong>🎤 Entrevistador:</strong>
+                                                <span>{entrevistadorFinal}</span>
+                                            </div>
+                                        );
+                                    }
+                                    return null;
+                                })()}
 
                                 <div className="info-row">
                                     <strong>🎯 Crianças CEPAS:</strong> 
@@ -267,7 +397,7 @@ const ListaFamilias = () => {
                                 </div>
 
                                 <div className="info-row">
-                                    <strong>� Benefício Social:</strong> 
+                                    <strong>Benefício Social:</strong> 
                                     <span style={{ 
                                         color: familia.RECEBE_BENEFICIO ? '#27ae60' : '#e74c3c',
                                         fontWeight: 'bold'
@@ -277,7 +407,7 @@ const ListaFamilias = () => {
                                 </div>
 
                                 <div className="info-row">
-                                    <strong>� Plano de Saúde:</strong> 
+                                    <strong>Plano de Saúde:</strong> 
                                     <span style={{ 
                                         color: familia.POSSUI_PLANO_SAUDE ? '#27ae60' : '#e74c3c'
                                     }}>
