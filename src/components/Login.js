@@ -88,12 +88,7 @@ const Login = () => {
                     </button>
                 </form>
 
-                <div className="login-info">
-                    <h4>Usuários de teste:</h4>
-                    <p><strong>Admin:</strong> admin / admin123</p>
-                    <p><strong>Monitor:</strong> monitor1 / monitor123</p>
-                    <p><strong>Visualizador:</strong> visual1 / visual123</p>
-                </div>
+                {/* Removed test credentials from the login UI for security/privacy */}
             </div>
         </div>
     );
