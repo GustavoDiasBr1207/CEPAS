@@ -1,0 +1,130 @@
+# Docker Compose otimizado para Oracle Cloud Always Free (1GB RAM)
+# Use: docker compose -f docker-compose.oracle-cloud.yml up -d
+
+services:
+  oracle:
+    image: gvenzl/oracle-free:23-slim
+    container_name: cepas-oracle
+    ports:
+      - "1521:1521"
+    environment:
+      - ORACLE_PASSWORD=oracle123
+      - APP_USER=cepas
+      - APP_USER_PASSWORD=cepas123
+      # Configurações de memória Oracle
+      - ORACLE_SGA_TARGET=256M
+      - ORACLE_PGA_AGGREGATE_TARGET=128M
+    volumes:
+      - oracle_data:/opt/oracle/oradata
+      - ./recursos:/opt/oracle/scripts/setup
+    restart: unless-stopped
+    networks:
+      - cepas-network
+    # LIMITES AGRESSIVOS PARA 1GB RAM
+    mem_limit: 450m
+    mem_reservation: 300m
+    memswap_limit: 512m
+    cpus: 0.5
+    # Health check
+    healthcheck:
+      test: ["CMD", "sqlplus", "-L", "sys/oracle123@//localhost:1521/FREE as sysdba", "@/dev/null"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.backend
+    container_name: cepas-backend
+    ports:
+      - "3001:3001"
+    environment:
+      - TNS_ADMIN=/usr/src/app/wallet
+      - NODE_ENV=production
+      - NODE_OPTIONS=--max-old-space-size=180
+      # Pool otimizado
+      - DB_POOL_MIN=1
+      - DB_POOL_MAX=2
+      - DB_POOL_TIMEOUT=30
+      # Credenciais (ajuste conforme necessário)
+      - DB_USER=ADMIN
+      - DB_PASSWORD=CepasDatabase@2025
+      - DB_CONNECT_STRING=cepasdb_high
+      # IP Público para CORS (será configurado no deploy)
+      - PUBLIC_IP=${PUBLIC_IP:-localhost}
+      - FRONTEND_URL=http://${PUBLIC_IP:-localhost}
+    depends_on:
+      oracle:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - cepas-network
+    # LIMITES AGRESSIVOS PARA 1GB RAM
+    mem_limit: 220m
+    mem_reservation: 150m
+    memswap_limit: 256m
+    cpus: 0.3
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/api/ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    # Política de reinício mais conservadora
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+
+  frontend:
+    build:
+      context: ./
+      dockerfile: Dockerfile.frontend
+    container_name: cepas-frontend
+    ports:
+      - "80:80"
+    environment:
+      - REACT_APP_API_BASE_URL=http://${PUBLIC_IP:-localhost}:3001/api
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - cepas-network
+    # LIMITES AGRESSIVOS PARA 1GB RAM
+    mem_limit: 100m
+    mem_reservation: 64m
+    memswap_limit: 128m
+    cpus: 0.2
+    # Health check
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  oracle_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/oracle
+
+networks:
+  cepas-network:
+    driver: bridge
+    driver_opts:
+      com.docker.network.driver.mtu: 1450
+
+# Configurações globais para economizar recursos
+x-logging:
+  &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"

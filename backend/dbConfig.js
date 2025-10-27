@@ -57,12 +57,22 @@ const dbConfig = {
     // connectionString resolve para o alias dentro do tnsnames.ora (em TNS_ADMIN)
     connectionString: process.env.DB_CONNECT_STRING || 'cepasdb_high',
     
-    // Configurações do Pool
-    poolMin: Number(process.env.DB_POOL_MIN || 10),
-    poolMax: Number(process.env.DB_POOL_MAX || 10),
-    poolIncrement: Number(process.env.DB_POOL_INCREMENT || 0),
-    poolTimeout: Number(process.env.DB_POOL_TIMEOUT || 60),
+    // Configurações do Pool (OTIMIZADO PARA 1GB RAM)
+    poolMin: Number(process.env.DB_POOL_MIN || 1),      // Reduzido: 10 → 1
+    poolMax: Number(process.env.DB_POOL_MAX || 3),      // Reduzido: 10 → 3
+    poolIncrement: Number(process.env.DB_POOL_INCREMENT || 1),  // Ajustado: 0 → 1
+    poolTimeout: Number(process.env.DB_POOL_TIMEOUT || 30),     // Reduzido: 60 → 30
+    
+    // Statement cache reduzido para economizar memória
+    stmtCacheSize: 10  // Padrão é 30
 };
+
+console.log('✅ [dbConfig] Pool otimizado para 1GB RAM:', {
+    poolMin: dbConfig.poolMin,
+    poolMax: dbConfig.poolMax,
+    poolTimeout: dbConfig.poolTimeout + 's',
+    stmtCacheSize: dbConfig.stmtCacheSize
+});
 
 // ----------------------------------------------------
 // Exportação
