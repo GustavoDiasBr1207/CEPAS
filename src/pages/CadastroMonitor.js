@@ -44,7 +44,7 @@ const CadastroMonitor = () => {
             const idCreated = res.ID || res.id_monitor || '';
             setMessage({ type: 'success', text: `Monitor criado com sucesso${idCreated ? ` (ID: ${idCreated})` : ''}` });
             setNome(''); setTelefone(''); setEmail(''); setObservacao('');
-            setTimeout(() => navigate('/consulta'), 900);
+            setTimeout(() => navigate('/'), 900);
         } catch (err) {
             console.error(err);
             setMessage({ type: 'error', text: err.message || 'Erro ao criar o monitor.' });

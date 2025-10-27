@@ -3,7 +3,7 @@
 .cards-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 20px;
+  gap: 28px;
 }
 
 @media (min-width: 640px) {
@@ -20,16 +20,31 @@
   border-radius: 16px;
   padding: 20px;
   border: 1px solid rgba(15, 23, 42, 0.06);
-  transition: transform 180ms ease, box-shadow 180ms ease;
-  box-shadow: 0 6px 18px rgba(12, 18, 37, 0.03);
-  /* margin to create visual space on the left and below each card */
-  margin-left: 18px;
+  transition: transform 220ms cubic-bezier(.2,.9,.2,1), box-shadow 220ms cubic-bezier(.2,.9,.2,1);
+  box-shadow: 0 8px 26px rgba(12, 18, 37, 0.06);
   margin-bottom: 18px;
+  position: relative;
+  overflow: hidden;
+  /* colored accent: left border uses the card's --card-color variable */
+  border-left: 6px solid var(--card-color, #16a34a);
 }
 
 .card:hover {
-  transform: translateY(-6px) scale(1.01);
-  box-shadow: 0 14px 36px rgba(12, 18, 37, 0.12);
+  transform: translateY(-8px);
+  box-shadow: 0 20px 40px rgba(12, 18, 37, 0.14);
+}
+
+/* subtle colored band at the top of the card using the CSS variable */
+.card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  height: 68px;
+  background: linear-gradient(90deg, var(--card-color, #16a34a), rgba(255,255,255,0));
+  opacity: 0.06;
+  pointer-events: none;
 }
 
 .card-top {
@@ -95,4 +110,38 @@ header h1 { line-height: 1.05; }
 
 @media (min-width: 992px) {
   .cards-section { padding-top: 80px; }
+}
+
+/* Home-specific hero styles */
+.home-hero {
+  background: linear-gradient(135deg, rgba(236,248,255,0.9) 0%, rgba(243,247,255,0.95) 100%);
+  padding: 28px 20px;
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(12,18,37,0.06);
+  margin-bottom: 18px;
+}
+
+.home-hero .formulario-header h1 {
+  color: #0f172a; /* dark */
+}
+
+.home-hero .formulario-header p {
+  color: #475569;
+  font-size: 15px;
+  margin-top: 8px;
+}
+
+.home-hero .home-status {
+  margin-top: 12px;
+  background: rgba(255,255,255,0.9);
+  box-shadow: 0 6px 18px rgba(12,18,37,0.04);
+}
+
+/* Make the card grid align cleanly under the hero */
+.home-cards { padding-left: 0; padding-top: 36px; }
+.home-cards .card { margin-left: 0; }
+
+@media (min-width: 992px) {
+  .home-hero { padding: 40px 28px; margin-bottom: 28px; }
+  .home-cards { padding-top: 60px; }
 }

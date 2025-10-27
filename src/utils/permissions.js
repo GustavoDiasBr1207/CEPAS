@@ -97,20 +97,17 @@ export const canAccessRoute = (user, route) => {
             '/cadastro-monitor', 
             '/lista-familias',
             '/lista-monitores',
-            '/editar-familia',
-            '/consulta'
+            '/editar-familia'
         ],
         monitor: [
             '/cadastro-familia',
             '/lista-familias',
             '/lista-monitores',
-            '/editar-familia',
-            '/consulta'
+            '/editar-familia'
         ],
         visualizador: [
             '/lista-familias',
-            '/lista-monitores',
-            '/consulta'
+            '/lista-monitores'
         ]
     };
 

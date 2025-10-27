@@ -21,8 +21,7 @@ export const ADMIN_ACCESS_CONFIG = {
         '/lista-familias', 
         '/lista-monitores',
         '/editar-familia',
-        '/consulta',
-        '/consulta-geral',
+        // Consulta geral removida
         '/admin',
         '/configuracoes',
         '/usuarios',
