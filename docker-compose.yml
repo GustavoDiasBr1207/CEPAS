@@ -14,6 +14,10 @@ services:
     restart: always
     networks:
       - cepas-network
+    # OTIMIZADO PARA 1GB RAM - Limites de memória
+    mem_limit: 512m
+    mem_reservation: 256m
+    cpus: 0.5
 
   backend:
     build:
@@ -25,11 +29,19 @@ services:
     environment:
       - TNS_ADMIN=/usr/src/app/wallet
       - NODE_ENV=production
+      - NODE_OPTIONS=--max-old-space-size=200
+      - DB_POOL_MIN=1
+      - DB_POOL_MAX=3
+      - DB_POOL_TIMEOUT=30
     depends_on:
       - oracle
     restart: always
     networks:
       - cepas-network
+    # OTIMIZADO PARA 1GB RAM - Limites de memória
+    mem_limit: 256m
+    mem_reservation: 128m
+    cpus: 0.3
 
   frontend:
     build:
@@ -45,6 +57,10 @@ services:
     restart: always
     networks:
       - cepas-network
+    # OTIMIZADO PARA 1GB RAM - Limites de memória
+    mem_limit: 128m
+    mem_reservation: 64m
+    cpus: 0.2
 
 volumes:
   oracle_data:

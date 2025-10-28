@@ -9,14 +9,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   libstdc++6 \
   unzip \
   curl \
-  && rm -rf /var/lib/apt/lists/*
+  && rm -rf /var/lib/apt/lists/* \
+  && npm cache clean --force
 
 WORKDIR /usr/src/app
 
-# Copia e instala dependências Node.js
-# Copiamos apenas package*.json para cache
+# Copia e instala dependências Node.js (OTIMIZADO)
 COPY package*.json ./
-RUN npm install --production
+RUN npm ci --only=production --no-audit --no-fund \
+  && npm cache clean --force
 
 # Copia o restante do código do backend
 COPY . .
@@ -42,6 +43,9 @@ ENV LD_LIBRARY_PATH=/usr/src/app/instant
 
 # Variável TNS_ADMIN já está definida no docker-compose.yaml, mas a mantemos aqui por garantia
 ENV TNS_ADMIN=/usr/src/app/wallet
+
+# OTIMIZADO: Limitar memória do Node.js
+ENV NODE_OPTIONS="--max-old-space-size=200"
 
 EXPOSE 3001
 
