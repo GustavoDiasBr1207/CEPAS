@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import Formulario from '../components/Formulario';
 import { useAuth } from '../hooks/useAuth';
+import { API_BASE_URL } from '../config/api';
 
 const EditarFamilia = ({ familiaId, onVoltar, onSucesso }) => {
     const { makeAuthenticatedRequest } = useAuth();
@@ -10,8 +11,6 @@ const EditarFamilia = ({ familiaId, onVoltar, onSucesso }) => {
     const [message, setMessage] = useState({ text: '', type: '' });
     const [connectionStatus, setConnectionStatus] = useState('testing');
     const [dadosOriginais, setDadosOriginais] = useState(null);
-
-    const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:3001/api';
 
     // Testar conexão e carregar dados quando a página carrega
     useEffect(() => {

@@ -4,9 +4,7 @@
  * Agora compatível com Docker e com funções CRUD completas.
  */
 
-// Define a URL base para chamadas de API.
-// Usa a variável de ambiente REACT_APP_API_BASE_URL (para Docker) ou volta para localhost (desenvolvimento).
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:3001/api'; 
+import { API_BASE_URL } from '../config/api';
 // Define o nome da tabela que este serviço irá manipular
 const TABLE_NAME = 'Familia'; 
 

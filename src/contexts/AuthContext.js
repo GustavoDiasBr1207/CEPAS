@@ -1,8 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { hasPermission as systemHasPermission, canAccessRoute, getPermissionErrorMessage } from '../utils/permissions';
-
-// Configuração da API
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:3001/api';
+import { API_BASE_URL } from '../config/api';
 
 export const AuthContext = createContext();
 
