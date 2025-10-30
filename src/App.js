@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { BrowserRouter, Routes, Route, useParams, Navigate, Link } from 'react-router-dom';
 // Importa ícones necessários para o componente Consulta e Cadastro
 import { Loader, Save, Clipboard, User } from 'lucide-react';
@@ -116,20 +116,30 @@ const AppContent = () => {
     const [pingStatus, setPingStatus] = useState('⏳ Conectando...');
 
     // Função para verificar o status do backend
-    const checkBackendStatus = async () => {
+    const checkBackendStatus = useCallback(async () => {
         try {
-            const response = await makeAuthenticatedRequest('/ping');
-            setPingStatus(response?.message || 'Backend conectado');
+            if (isAuthenticated) {
+                const response = await makeAuthenticatedRequest('/ping');
+                setPingStatus(response?.message || 'Backend conectado');
+            } else {
+                const response = await fetch(`${API_BASE_URL}/ping`);
+                if (response.ok) {
+                    const data = await response.json().catch(() => ({}));
+                    setPingStatus(data?.message || 'Backend conectado');
+                } else {
+                    setPingStatus('❌ Backend indisponível (Erro de rede/CORS)');
+                }
+            }
         } catch (error) {
             console.error("Erro ao conectar com o backend:", error);
             setPingStatus('❌ Backend indisponível (Erro de rede/CORS)');
         }
-    };
+    }, [isAuthenticated, makeAuthenticatedRequest]);
 
     // Executa o ping na montagem do componente
     useEffect(() => {
         checkBackendStatus();
-    }, [makeAuthenticatedRequest]);
+    }, [checkBackendStatus]);
 
     if (isLoading) {
         return (
