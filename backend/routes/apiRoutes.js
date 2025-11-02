@@ -681,6 +681,139 @@ router.get('/entrevistas/resumo', authenticateToken, authorize('monitor', 'coord
 });
 
 /**
+ * Endpoint: GET /api/entrevistas/calendario - Eventos de entrevistas realizadas e visitas agendadas
+ * Requer autenticação dos perfis monitor, coordenador ou admin
+ */
+router.get('/entrevistas/calendario', authenticateToken, authorize('monitor', 'coordenador', 'admin'), async (req, res) => {
+    let connection;
+
+    try {
+        connection = await oracledb.getConnection(dbConfig);
+
+        const calendarioSql = `
+            WITH monitores AS (
+                SELECT
+                    em.id_entrevista,
+                    LISTAGG(m.nome, ' | ') WITHIN GROUP (ORDER BY m.nome) AS monitor_nomes,
+                    LISTAGG(m.email, ' | ') WITHIN GROUP (ORDER BY m.nome) AS monitor_emails
+                FROM EntrevistaMonitor em
+                JOIN Monitor m ON m.id_monitor = em.id_monitor
+                GROUP BY em.id_entrevista
+            )
+            SELECT
+                e.id_entrevista,
+                e.id_familia,
+                f.nome_familia,
+                e.data_entrevista,
+                e.proxima_visita,
+                e.entrevistado,
+                e.telefone_contato,
+                e.observacoes,
+                e.usuario_responsavel,
+                mon.monitor_nomes,
+                mon.monitor_emails
+            FROM Entrevista e
+            LEFT JOIN Familia f ON f.id_familia = e.id_familia
+            LEFT JOIN monitores mon ON mon.id_entrevista = e.id_entrevista
+        `;
+
+        const result = await connection.execute(calendarioSql, [], { outFormat: oracledb.OUT_FORMAT_OBJECT });
+        const rows = result.rows || [];
+        const events = [];
+        const now = new Date();
+        const msPorDia = 1000 * 60 * 60 * 24;
+
+        const parseLista = (valor) => {
+            if (!valor) return [];
+            return String(valor)
+                .split('|')
+                .map((item) => item.trim())
+                .filter((item) => item.length > 0);
+        };
+
+        rows.forEach((row) => {
+            const monitorNomes = parseLista(row.MONITOR_NOMES);
+            const monitorEmails = parseLista(row.MONITOR_EMAILS);
+
+            const baseEvento = {
+                entrevista_id: row.ID_ENTREVISTA,
+                familia_id: row.ID_FAMILIA,
+                familia_nome: row.NOME_FAMILIA || 'Família não identificada',
+                entrevistado: row.ENTREVISTADO || null,
+                telefone_contato: row.TELEFONE_CONTATO || null,
+                observacoes: row.OBSERVACOES || null,
+                usuario_responsavel: row.USUARIO_RESPONSAVEL || null,
+                monitor_nomes: monitorNomes,
+                monitor_emails: monitorEmails
+            };
+
+            const dataEntrevista = row.DATA_ENTREVISTA instanceof Date
+                ? row.DATA_ENTREVISTA
+                : (row.DATA_ENTREVISTA ? new Date(row.DATA_ENTREVISTA) : null);
+
+            if (dataEntrevista) {
+                const diasDesde = Math.floor((now.getTime() - dataEntrevista.getTime()) / msPorDia);
+                events.push({
+                    ...baseEvento,
+                    id: `realizada-${row.ID_ENTREVISTA}`,
+                    tipo: 'realizada',
+                    titulo: `Entrevista realizada - ${baseEvento.familia_nome}`,
+                    data: dataEntrevista.toISOString(),
+                    dias_referencia: diasDesde,
+                    status: diasDesde <= 30 ? 'recente' : 'historico'
+                });
+            }
+
+            const proximaVisita = row.PROXIMA_VISITA instanceof Date
+                ? row.PROXIMA_VISITA
+                : (row.PROXIMA_VISITA ? new Date(row.PROXIMA_VISITA) : null);
+
+            if (proximaVisita) {
+                const diasAte = Math.ceil((proximaVisita.getTime() - now.getTime()) / msPorDia);
+                events.push({
+                    ...baseEvento,
+                    id: `agendada-${row.ID_ENTREVISTA}`,
+                    tipo: 'agendada',
+                    titulo: `Visita agendada - ${baseEvento.familia_nome}`,
+                    data: proximaVisita.toISOString(),
+                    dias_referencia: diasAte,
+                    data_entrevista_base: dataEntrevista ? dataEntrevista.toISOString() : null,
+                    status: diasAte < 0 ? 'em_atraso' : (diasAte <= 7 ? 'em_breve' : 'programada')
+                });
+            }
+        });
+
+        const totalRealizadas = events.filter((item) => item.tipo === 'realizada').length;
+        const totalAgendadas = events.filter((item) => item.tipo === 'agendada').length;
+        const totalAgendadasFuturas = events.filter((item) => item.tipo === 'agendada' && item.dias_referencia >= 0).length;
+        const agendadasProximas7 = events.filter((item) => item.tipo === 'agendada' && item.dias_referencia >= 0 && item.dias_referencia <= 7).length;
+
+        res.status(200).json({
+            message: 'Calendário de entrevistas carregado com sucesso.',
+            events,
+            metrics: {
+                totalEventos: events.length,
+                entrevistasRealizadas: totalRealizadas,
+                visitasAgendadas: totalAgendadas,
+                visitasAgendadasFuturas: totalAgendadasFuturas,
+                visitasNosProximos7Dias: agendadasProximas7
+            },
+            generatedAt: new Date().toISOString()
+        });
+    } catch (err) {
+        console.error('❌ Erro ao carregar calendário de entrevistas:', err);
+        res.status(500).json({
+            message: 'Erro ao carregar calendário de entrevistas.',
+            error: err.message
+        });
+    } finally {
+        if (connection) {
+            try { await connection.close(); } catch (closeErr) { /* ignore */ }
+        }
+    }
+});
+
+/**
  * Endpoint: GET /api/familias/:id/entrevistas - Histórico completo de entrevistas por família
  * Requer autenticação dos perfis monitor, coordenador ou admin
  */

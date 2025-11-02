@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { BrowserRouter, Routes, Route, useParams, Navigate, Link } from 'react-router-dom';
 // Importa ícones necessários para o componente Consulta e Cadastro
-import { Loader, Save, Clipboard, User, MessageSquare } from 'lucide-react';
+import { Loader, Save, Clipboard, User, MessageSquare, CalendarDays } from 'lucide-react';
 import './Home.css';
 
 // Importa os novos componentes
@@ -11,6 +11,7 @@ import EditarFamilia from './pages/EditarFamilia';
 import CadastroMonitor from './pages/CadastroMonitor';
 import ListaMonitores from './pages/ListaMonitores';
 import Entrevistas from './pages/Entrevistas';
+import Calendario from './pages/Calendario';
 
 // Importa componentes de autenticação
 import { AuthProvider } from './contexts/AuthContext';
@@ -70,6 +71,14 @@ const Home = ({ pingStatus }) => {
             to: '/entrevistas',
             color: '#7c3aed',
             icon: <MessageSquare />,
+            permission: ['monitor', 'coordenador', 'admin']
+        },
+        {
+            title: 'Calendário',
+            desc: 'Veja entrevistas realizadas e visitas agendadas em uma visão de calendário.',
+            to: '/calendario',
+            color: '#0ea5e9',
+            icon: <CalendarDays />,
             permission: ['monitor', 'coordenador', 'admin']
         }
     ];
@@ -223,6 +232,14 @@ const AppContent = () => {
                         element={
                             <ProtectedRoute requiredRoles={['monitor', 'coordenador', 'admin']}>
                                 <Entrevistas />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/calendario"
+                        element={
+                            <ProtectedRoute requiredRoles={['monitor', 'coordenador', 'admin']}>
+                                <Calendario />
                             </ProtectedRoute>
                         }
                     />
