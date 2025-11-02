@@ -1,5 +1,6 @@
 const express = require('express');
 const oracledb = require('oracledb');
+const dbConfig = require('../dbConfig');
 // Importa as funções de serviço e CRUD do módulo Oracle
 const { 
     fetchTableData, 
@@ -467,6 +468,497 @@ router.delete('/dados/:tableName/:id', authenticateToken, authorize('coordenador
         
         // Outros erros internos
         res.status(500).send(`Erro ao excluir registro ID ${id}: ${err.message}`);
+    }
+});
+
+// ------------------------------------
+// ROTAS ESPECÍFICAS DE ENTREVISTAS
+// ------------------------------------
+
+/**
+ * Endpoint: GET /api/entrevistas/resumo - Consolidado das entrevistas por família
+ * Requer autenticação dos perfis monitor, coordenador ou admin
+ */
+router.get('/entrevistas/resumo', authenticateToken, authorize('monitor', 'coordenador', 'admin'), async (req, res) => {
+    let connection;
+
+    try {
+        connection = await oracledb.getConnection(dbConfig);
+
+        const resumoSql = `
+            WITH responsavel AS (
+                SELECT
+                    id_familia,
+                    MAX(nome) KEEP (DENSE_RANK FIRST ORDER BY prioridade, data_nascimento DESC NULLS LAST, id_membro DESC) AS nome_responsavel,
+                    MAX(id_membro) KEEP (DENSE_RANK FIRST ORDER BY prioridade, data_nascimento DESC NULLS LAST, id_membro DESC) AS id_membro_responsavel
+                FROM (
+                    SELECT
+                        m.id_familia,
+                        m.id_membro,
+                        m.nome,
+                        m.data_nascimento,
+                        CASE
+                            WHEN UPPER(NVL(m.relacao, '')) LIKE '%RESPONS%' THEN 1
+                            WHEN UPPER(NVL(m.relacao, '')) LIKE '%CHEFE%' THEN 2
+                            WHEN UPPER(NVL(m.relacao, '')) IN ('PAI', 'MAE') THEN 3
+                            ELSE 99
+                        END AS prioridade
+                    FROM Membro m
+                )
+                GROUP BY id_familia
+            ),
+            ultima AS (
+                SELECT * FROM (
+                    SELECT
+                        e.id_familia,
+                        e.id_entrevista,
+                        e.data_entrevista,
+                        e.proxima_visita,
+                        e.entrevistado,
+                        e.telefone_contato,
+                        e.observacoes,
+                        e.usuario_responsavel,
+                        em.id_monitor,
+                        m.nome AS monitor_nome,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY e.id_familia
+                            ORDER BY e.data_entrevista DESC NULLS LAST, e.id_entrevista DESC
+                        ) AS rn
+                    FROM Entrevista e
+                    LEFT JOIN EntrevistaMonitor em ON e.id_entrevista = em.id_entrevista
+                    LEFT JOIN Monitor m ON em.id_monitor = m.id_monitor
+                )
+                WHERE rn = 1
+            ),
+            total AS (
+                SELECT id_familia, COUNT(*) AS total_entrevistas
+                FROM Entrevista
+                GROUP BY id_familia
+            )
+            SELECT
+                f.id_familia,
+                f.nome_familia,
+                f.created_at,
+                resp.nome_responsavel,
+                resp.id_membro_responsavel,
+                ult.id_entrevista AS ultima_id_entrevista,
+                ult.data_entrevista AS ultima_data,
+                ult.entrevistado AS ultima_entrevistado,
+                ult.telefone_contato AS ultima_telefone,
+                ult.observacoes AS ultima_observacoes,
+                ult.usuario_responsavel AS ultima_usuario,
+                ult.id_monitor AS ultima_id_monitor,
+                ult.monitor_nome AS ultima_monitor_nome,
+                NVL(total.total_entrevistas, 0) AS total_entrevistas,
+                CASE
+                    WHEN ult.data_entrevista IS NULL THEN NULL
+                    ELSE TRUNC(SYSDATE) - TRUNC(ult.data_entrevista)
+                END AS dias_desde_ultima,
+                ult.proxima_visita AS proxima_visita,
+                CASE
+                    WHEN ult.data_entrevista IS NULL THEN 'PENDENTE'
+                    WHEN TRUNC(SYSDATE) - TRUNC(ult.data_entrevista) >= 365 THEN 'CRITICA'
+                    WHEN TRUNC(SYSDATE) - TRUNC(ult.data_entrevista) >= 180 THEN 'ALERTA'
+                    WHEN TRUNC(SYSDATE) - TRUNC(ult.data_entrevista) >= 90 THEN 'ATENCAO'
+                    ELSE 'EM_DIA'
+                END AS status_prioridade
+            FROM Familia f
+            LEFT JOIN responsavel resp ON resp.id_familia = f.id_familia
+            LEFT JOIN ultima ult ON ult.id_familia = f.id_familia
+            LEFT JOIN total ON total.id_familia = f.id_familia
+            ORDER BY
+                CASE WHEN ult.data_entrevista IS NULL THEN 0 ELSE 1 END,
+                CASE
+                    WHEN ult.data_entrevista IS NULL THEN 9999
+                    ELSE TRUNC(SYSDATE) - TRUNC(ult.data_entrevista)
+                END DESC,
+                f.nome_familia
+        `;
+
+        const resumoResult = await connection.execute(resumoSql, [], { outFormat: oracledb.OUT_FORMAT_OBJECT });
+        const rows = resumoResult.rows || [];
+        const now = new Date();
+
+        const statusLabels = {
+            PENDENTE: 'Sem entrevista registrada',
+            CRITICA: 'Crítica (>= 12 meses)',
+            ALERTA: 'Alerta (>= 6 meses)',
+            ATENCAO: 'Atenção (>= 3 meses)',
+            EM_DIA: 'Em dia'
+        };
+
+        const statusLevels = {
+            PENDENTE: 'pending',
+            CRITICA: 'critical',
+            ALERTA: 'warning',
+            ATENCAO: 'warning',
+            EM_DIA: 'ok'
+        };
+
+        const data = rows.map((row) => {
+            const ultimaData = row.ULTIMA_DATA instanceof Date ? row.ULTIMA_DATA : (row.ULTIMA_DATA ? new Date(row.ULTIMA_DATA) : null);
+            const proximaVisita = row.PROXIMA_VISITA instanceof Date ? row.PROXIMA_VISITA : (row.PROXIMA_VISITA ? new Date(row.PROXIMA_VISITA) : null);
+            const diasDesde = row.DIAS_DESDE_ULTIMA !== null && row.DIAS_DESDE_ULTIMA !== undefined
+                ? Number(row.DIAS_DESDE_ULTIMA)
+                : null;
+
+            let diasAteProxima = null;
+            if (proximaVisita) {
+                const diffMs = proximaVisita.getTime() - now.getTime();
+                diasAteProxima = Math.round(diffMs / (1000 * 60 * 60 * 24));
+            }
+
+            const status = row.STATUS_PRIORIDADE || 'PENDENTE';
+
+            return {
+                id_familia: row.ID_FAMILIA,
+                nome_familia: row.NOME_FAMILIA,
+                responsavel: row.NOME_RESPONSAVEL || null,
+                created_at: row.CREATED_AT instanceof Date ? row.CREATED_AT.toISOString() : (row.CREATED_AT || null),
+                ultima_entrevista: ultimaData ? ultimaData.toISOString() : null,
+                ultima_entrevistado: row.ULTIMA_ENTREVISTADO || null,
+                ultima_telefone: row.ULTIMA_TELEFONE || null,
+                ultima_observacoes: row.ULTIMA_OBSERVACOES || null,
+                ultima_id_entrevista: row.ULTIMA_ID_ENTREVISTA || null,
+                ultima_monitor_id: row.ULTIMA_ID_MONITOR || null,
+                ultima_monitor_nome: row.ULTIMA_MONITOR_NOME || null,
+                usuario_responsavel: row.ULTIMA_USUARIO || null,
+                total_entrevistas: Number(row.TOTAL_ENTREVISTAS || 0),
+                dias_desde_ultima: diasDesde,
+                proxima_visita: proximaVisita ? proximaVisita.toISOString() : null,
+                dias_ate_proxima: diasAteProxima,
+                status_prioridade: status,
+                status_label: statusLabels[status] || status,
+                status_level: statusLevels[status] || 'pending'
+            };
+        });
+
+        const familiasTotal = data.length;
+        const familiasComEntrevista = data.filter((item) => item.ultima_entrevista !== null).length;
+        const familiasSemEntrevista = familiasTotal - familiasComEntrevista;
+        const pendenciasCriticas = data.filter((item) => item.status_prioridade === 'CRITICA').length;
+        const pendenciasAlerta = data.filter((item) => item.status_prioridade === 'ALERTA' || item.status_prioridade === 'ATENCAO').length;
+
+        const entrevistasResumoSql = `
+            SELECT
+                COUNT(*) AS total,
+                SUM(CASE WHEN data_entrevista >= TRUNC(SYSDATE) - 30 THEN 1 ELSE 0 END) AS ultimos_30,
+                SUM(CASE WHEN EXTRACT(YEAR FROM data_entrevista) = EXTRACT(YEAR FROM SYSDATE) THEN 1 ELSE 0 END) AS ano_atual
+            FROM Entrevista
+        `;
+        const entrevistasResumoResult = await connection.execute(entrevistasResumoSql, [], { outFormat: oracledb.OUT_FORMAT_OBJECT });
+        const entrevistasStats = entrevistasResumoResult.rows && entrevistasResumoResult.rows[0]
+            ? entrevistasResumoResult.rows[0]
+            : { TOTAL: 0, ULTIMOS_30: 0, ANO_ATUAL: 0 };
+
+        const metrics = {
+            totalFamilias: familiasTotal,
+            familiasComEntrevista,
+            familiasSemEntrevista,
+            entrevistasTotal: Number(entrevistasStats.TOTAL || 0),
+            entrevistasUltimos30Dias: Number(entrevistasStats.ULTIMOS_30 || 0),
+            entrevistasAnoAtual: Number(entrevistasStats.ANO_ATUAL || 0),
+            pendenciasCriticas,
+            pendenciasAlerta
+        };
+
+        res.status(200).json({
+            message: 'Resumo de entrevistas carregado com sucesso.',
+            data,
+            metrics
+        });
+    } catch (err) {
+        console.error('❌ Erro ao carregar resumo de entrevistas:', err);
+        res.status(500).json({
+            message: 'Erro ao carregar resumo de entrevistas.',
+            error: err.message
+        });
+    } finally {
+        if (connection) {
+            try { await connection.close(); } catch (closeErr) { /* ignore */ }
+        }
+    }
+});
+
+/**
+ * Endpoint: GET /api/familias/:id/entrevistas - Histórico completo de entrevistas por família
+ * Requer autenticação dos perfis monitor, coordenador ou admin
+ */
+router.get('/familias/:id/entrevistas', authenticateToken, authorize('monitor', 'coordenador', 'admin'), async (req, res) => {
+    const { id } = req.params;
+
+    if (!id || isNaN(parseInt(id, 10))) {
+        return res.status(400).json({
+            message: 'ID da família inválido.'
+        });
+    }
+
+    let connection;
+
+    try {
+        connection = await oracledb.getConnection(dbConfig);
+        const historicoSql = `
+            SELECT
+                e.id_entrevista,
+                e.id_familia,
+                e.data_entrevista,
+                e.entrevistado,
+                e.telefone_contato,
+                e.proxima_visita,
+                e.observacoes,
+                e.usuario_responsavel,
+                e.created_at,
+                e.updated_at,
+                em.id_monitor,
+                m.nome AS monitor_nome,
+                m.email AS monitor_email
+            FROM Entrevista e
+            LEFT JOIN EntrevistaMonitor em ON e.id_entrevista = em.id_entrevista
+            LEFT JOIN Monitor m ON em.id_monitor = m.id_monitor
+            WHERE e.id_familia = :id
+            ORDER BY e.data_entrevista DESC NULLS LAST, e.id_entrevista DESC
+        `;
+
+        const result = await connection.execute(historicoSql, [id], { outFormat: oracledb.OUT_FORMAT_OBJECT });
+        const rows = result.rows || [];
+
+        const agrupado = new Map();
+        rows.forEach((row) => {
+            const idEntrevista = row.ID_ENTREVISTA;
+            if (!agrupado.has(idEntrevista)) {
+                const dataEntrevista = row.DATA_ENTREVISTA instanceof Date ? row.DATA_ENTREVISTA : (row.DATA_ENTREVISTA ? new Date(row.DATA_ENTREVISTA) : null);
+                const proximaVisita = row.PROXIMA_VISITA instanceof Date ? row.PROXIMA_VISITA : (row.PROXIMA_VISITA ? new Date(row.PROXIMA_VISITA) : null);
+                const diasDesde = dataEntrevista ? Math.floor((Date.now() - dataEntrevista.getTime()) / (1000 * 60 * 60 * 24)) : null;
+                const diasAteProxima = proximaVisita ? Math.round((proximaVisita.getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
+
+                agrupado.set(idEntrevista, {
+                    id_entrevista: idEntrevista,
+                    id_familia: row.ID_FAMILIA,
+                    data_entrevista: dataEntrevista ? dataEntrevista.toISOString() : null,
+                    entrevistado: row.ENTREVISTADO || null,
+                    telefone_contato: row.TELEFONE_CONTATO || null,
+                    proxima_visita: proximaVisita ? proximaVisita.toISOString() : null,
+                    dias_ate_proxima: diasAteProxima,
+                    observacoes: row.OBSERVACOES || null,
+                    usuario_responsavel: row.USUARIO_RESPONSAVEL || null,
+                    created_at: row.CREATED_AT instanceof Date ? row.CREATED_AT.toISOString() : (row.CREATED_AT || null),
+                    updated_at: row.UPDATED_AT instanceof Date ? row.UPDATED_AT.toISOString() : (row.UPDATED_AT || null),
+                    dias_desde: diasDesde,
+                    monitores: []
+                });
+            }
+
+            if (row.ID_MONITOR) {
+                agrupado.get(idEntrevista).monitores.push({
+                    id_monitor: row.ID_MONITOR,
+                    nome: row.MONITOR_NOME || '',
+                    email: row.MONITOR_EMAIL || null
+                });
+            }
+        });
+
+        const entrevistas = Array.from(agrupado.values()).sort((a, b) => {
+            const dataA = a.data_entrevista ? new Date(a.data_entrevista).getTime() : 0;
+            const dataB = b.data_entrevista ? new Date(b.data_entrevista).getTime() : 0;
+            return dataB - dataA;
+        });
+
+        res.status(200).json({
+            message: 'Histórico de entrevistas carregado com sucesso.',
+            data: entrevistas
+        });
+    } catch (err) {
+        console.error('❌ Erro ao carregar histórico de entrevistas:', err);
+        res.status(500).json({
+            message: 'Erro ao carregar histórico de entrevistas.',
+            error: err.message
+        });
+    } finally {
+        if (connection) {
+            try { await connection.close(); } catch (closeErr) { /* ignore */ }
+        }
+    }
+});
+
+/**
+ * Endpoint: POST /api/familias/:id/entrevistas - Registrar nova entrevista para uma família
+ * Requer autenticação dos perfis monitor, coordenador ou admin
+ */
+router.post('/familias/:id/entrevistas', authenticateToken, authorize('monitor', 'coordenador', 'admin'), async (req, res) => {
+    const { id } = req.params;
+
+    if (!id || isNaN(parseInt(id, 10))) {
+        return res.status(400).json({
+            message: 'ID da família inválido.'
+        });
+    }
+
+    const {
+        data_entrevista,
+        entrevistado,
+        telefone_contato,
+        observacoes,
+        proxima_visita,
+        monitor_id,
+        monitorIds,
+        monitorId,
+        entrevistador_id,
+        entrevistador
+    } = req.body || {};
+
+    if (!data_entrevista || `${data_entrevista}`.trim() === '') {
+        return res.status(400).json({
+            message: 'Data da entrevista é obrigatória.'
+        });
+    }
+
+    const dataEntrevistaDate = new Date(data_entrevista);
+    if (Number.isNaN(dataEntrevistaDate.getTime())) {
+        return res.status(400).json({
+            message: 'Data da entrevista inválida.'
+        });
+    }
+
+    let proximaVisitaDate = null;
+    if (proxima_visita !== undefined && proxima_visita !== null && `${proxima_visita}`.trim() !== '') {
+        const valor = `${proxima_visita}`.trim();
+        const parsed = valor.includes('T') ? new Date(valor) : new Date(`${valor}T00:00:00`);
+        if (Number.isNaN(parsed.getTime())) {
+            return res.status(400).json({
+                message: 'Data da próxima visita inválida.'
+            });
+        }
+        proximaVisitaDate = parsed;
+    }
+
+    const usuario = req.user ? req.user.username : 'sistema_api';
+
+    const payload = {
+        id_familia: Number(id),
+        data_entrevista: dataEntrevistaDate,
+        entrevistado: entrevistado || null,
+        telefone_contato: telefone_contato || null,
+        observacoes: observacoes || null,
+        proxima_visita: proximaVisitaDate,
+        usuario_responsavel: usuario
+    };
+
+    let novaEntrevistaId;
+
+    try {
+        novaEntrevistaId = await insertRecord('Entrevista', payload);
+    } catch (err) {
+        console.error('❌ Erro ao registrar entrevista:', err);
+        if (err.message && err.message.includes('ORA-02291')) {
+            return res.status(400).json({
+                message: 'Família ou monitor vinculado não encontrado ao registrar a entrevista.',
+                error: err.message
+            });
+        }
+        return res.status(500).json({
+            message: 'Erro ao registrar a entrevista.',
+            error: err.message
+        });
+    }
+
+    const monitorSet = new Set();
+    if (Array.isArray(monitorIds)) {
+        monitorIds.forEach((mid) => {
+            const parsed = Number(mid);
+            if (!Number.isNaN(parsed)) {
+                monitorSet.add(parsed);
+            }
+        });
+    }
+
+    [monitor_id, monitorId, entrevistador_id, entrevistador].forEach((mid) => {
+        if (mid !== undefined && mid !== null && `${mid}`.trim() !== '') {
+            const parsed = Number(mid);
+            if (!Number.isNaN(parsed)) {
+                monitorSet.add(parsed);
+            }
+        }
+    });
+
+    let erroAoVincularMonitor = null;
+    if (monitorSet.size > 0) {
+        let monitorConnection;
+        try {
+            monitorConnection = await oracledb.getConnection(dbConfig);
+            for (const monitorValue of monitorSet) {
+                await monitorConnection.execute(
+                    `INSERT INTO EntrevistaMonitor (id_entrevista_monitor, id_entrevista, id_monitor)
+                     VALUES (seq_entrevistamonitor.NEXTVAL, :id_entrevista, :id_monitor)`,
+                    { id_entrevista: novaEntrevistaId, id_monitor: monitorValue },
+                    { autoCommit: true }
+                );
+            }
+        } catch (err) {
+            console.error('❌ Erro ao vincular monitor à entrevista:', err);
+            erroAoVincularMonitor = err;
+        } finally {
+            if (monitorConnection) {
+                try { await monitorConnection.close(); } catch (closeErr) { /* ignore */ }
+            }
+        }
+    }
+
+    try {
+        const entrevistaRows = await fetchTableData('Entrevista', `
+            SELECT
+                e.*,
+                em.id_monitor,
+                m.nome AS monitor_nome,
+                m.email AS monitor_email
+            FROM Entrevista e
+            LEFT JOIN EntrevistaMonitor em ON e.id_entrevista = em.id_entrevista
+            LEFT JOIN Monitor m ON em.id_monitor = m.id_monitor
+            WHERE e.id_entrevista = :id
+        `, { id: novaEntrevistaId });
+
+        const mapEntrevista = new Map();
+        entrevistaRows.forEach((row) => {
+            const idEntrevista = row.ID_ENTREVISTA;
+            if (!mapEntrevista.has(idEntrevista)) {
+                mapEntrevista.set(idEntrevista, {
+                    id_entrevista: idEntrevista,
+                    id_familia: row.ID_FAMILIA,
+                    data_entrevista: row.DATA_ENTREVISTA instanceof Date ? row.DATA_ENTREVISTA.toISOString() : (row.DATA_ENTREVISTA || null),
+                    entrevistado: row.ENTREVISTADO || null,
+                    telefone_contato: row.TELEFONE_CONTATO || null,
+                    proxima_visita: row.PROXIMA_VISITA instanceof Date ? row.PROXIMA_VISITA.toISOString() : (row.PROXIMA_VISITA || null),
+                    observacoes: row.OBSERVACOES || null,
+                    usuario_responsavel: row.USUARIO_RESPONSAVEL || null,
+                    created_at: row.CREATED_AT instanceof Date ? row.CREATED_AT.toISOString() : (row.CREATED_AT || null),
+                    updated_at: row.UPDATED_AT instanceof Date ? row.UPDATED_AT.toISOString() : (row.UPDATED_AT || null),
+                    monitores: []
+                });
+            }
+
+            if (row.ID_MONITOR) {
+                mapEntrevista.get(idEntrevista).monitores.push({
+                    id_monitor: row.ID_MONITOR,
+                    nome: row.MONITOR_NOME || '',
+                    email: row.MONITOR_EMAIL || null
+                });
+            }
+        });
+
+        const entrevistaDetalhada = mapEntrevista.values().next().value || null;
+
+        res.status(201).json({
+            message: erroAoVincularMonitor ? 'Entrevista registrada, porém não foi possível vincular o monitor.' : 'Entrevista registrada com sucesso.',
+            id_entrevista: novaEntrevistaId,
+            data: entrevistaDetalhada,
+            warnings: erroAoVincularMonitor ? [{ type: 'monitor_link', message: 'Falha ao vincular o monitor informado.', detail: erroAoVincularMonitor.message }] : undefined
+        });
+    } catch (err) {
+        console.error('⚠️ Entrevista criada, mas falha ao carregar dados detalhados:', err);
+        res.status(201).json({
+            message: erroAoVincularMonitor ? 'Entrevista registrada, mas ocorreram falhas ao retornar os dados e ao vincular monitor.' : 'Entrevista registrada, porém não foi possível carregar os dados detalhados.',
+            id_entrevista: novaEntrevistaId,
+            warnings: erroAoVincularMonitor ? [{ type: 'monitor_link', message: 'Falha ao vincular o monitor informado.', detail: erroAoVincularMonitor.message }] : undefined
+        });
     }
 });
 

@@ -203,7 +203,8 @@ async function updateRecord(tableName, id, updates) {
             'ENTREVISTA': 'ID_ENTREVISTA',
             'ENTREVISTAMONITOR': 'ID_ENTREVISTA_MONITOR',
             'SAUDEMEMBRO': 'ID_SAUDE',
-            'CRIANCACEPAS': 'ID_CRIANCA'
+            'CRIANCACEPAS': 'ID_CRIANCA',
+            'REFRESHTOKEN': 'ID_TOKEN'
         };
 
         const tableNameUpper = String(tableName).toUpperCase();
