@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { BrowserRouter, Routes, Route, useParams, Navigate, Link } from 'react-router-dom';
 // Importa ícones necessários para o componente Consulta e Cadastro
 import { Loader, Save, Clipboard, User } from 'lucide-react';
@@ -17,9 +17,7 @@ import { useAuth } from './hooks/useAuth';
 import Login from './components/Login';
 import ProtectedRoute from './components/ProtectedRoute';
 import Nav from './components/Nav';
-
-// URL base do seu backend (o servidor Express rodará na porta 3001)
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:3001/api'; 
+import { API_BASE_URL } from './config/api';
 
 // ------------------------------------
 // 1. Componentes de Página
@@ -118,20 +116,30 @@ const AppContent = () => {
     const [pingStatus, setPingStatus] = useState('⏳ Conectando...');
 
     // Função para verificar o status do backend
-    const checkBackendStatus = async () => {
+    const checkBackendStatus = useCallback(async () => {
         try {
-            const response = await makeAuthenticatedRequest('/ping');
-            setPingStatus(response?.message || 'Backend conectado');
+            if (isAuthenticated) {
+                const response = await makeAuthenticatedRequest('/ping');
+                setPingStatus(response?.message || 'Backend conectado');
+            } else {
+                const response = await fetch(`${API_BASE_URL}/ping`);
+                if (response.ok) {
+                    const data = await response.json().catch(() => ({}));
+                    setPingStatus(data?.message || 'Backend conectado');
+                } else {
+                    setPingStatus('❌ Backend indisponível (Erro de rede/CORS)');
+                }
+            }
         } catch (error) {
             console.error("Erro ao conectar com o backend:", error);
             setPingStatus('❌ Backend indisponível (Erro de rede/CORS)');
         }
-    };
+    }, [isAuthenticated, makeAuthenticatedRequest]);
 
     // Executa o ping na montagem do componente
     useEffect(() => {
         checkBackendStatus();
-    }, [makeAuthenticatedRequest]);
+    }, [checkBackendStatus]);
 
     if (isLoading) {
         return (

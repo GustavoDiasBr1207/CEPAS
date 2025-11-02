@@ -1,0 +1,90 @@
+# Docker Compose para Oracle Cloud - Usando Autonomous Database (GRÁTIS)
+# Remove o container Oracle local e usa apenas o banco gerenciado
+# Use: docker compose -f docker-compose.autonomous.yml up -d
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.backend
+    container_name: cepas-backend
+    ports:
+      - "3001:3001"
+    environment:
+      - TNS_ADMIN=/usr/src/app/wallet
+      - NODE_ENV=production
+      - NODE_OPTIONS=--max-old-space-size=200
+      # Pool otimizado para Autonomous DB
+      - DB_POOL_MIN=1
+      - DB_POOL_MAX=3
+      - DB_POOL_TIMEOUT=30
+      # Credenciais Autonomous Database (ajuste conforme necessário)
+      - DB_USER=ADMIN
+      - DB_PASSWORD=CepasDatabase@2025
+      - DB_CONNECT_STRING=cepasdb_high
+      # IP Público para CORS (será configurado no deploy)
+      - PUBLIC_IP=${PUBLIC_IP:-localhost}
+      - FRONTEND_URL=http://${PUBLIC_IP:-localhost}
+      - EXTRA_ALLOWED_ORIGINS=${EXTRA_ALLOWED_ORIGINS:-""}
+    restart: unless-stopped
+    networks:
+      - cepas-network
+    # LIMITES PARA 1GB RAM (sem Oracle local = mais memória disponível)
+    mem_limit: 400m
+    mem_reservation: 256m
+    memswap_limit: 512m
+    cpus: 0.6
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/api/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    # Política de reinício
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+
+  frontend:
+    build:
+      context: ./
+      dockerfile: Dockerfile.frontend
+      args:
+        REACT_APP_API_BASE_URL: http://${PUBLIC_IP:-localhost}:3001/api
+    container_name: cepas-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - cepas-network
+    # LIMITES PARA 1GB RAM
+    mem_limit: 150m
+    mem_reservation: 100m
+    memswap_limit: 200m
+    cpus: 0.4
+    # Health check
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+networks:
+  cepas-network:
+    driver: bridge
+    driver_opts:
+      com.docker.network.driver.mtu: 1450
+
+# Configurações globais de logging
+x-logging:
+  &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"

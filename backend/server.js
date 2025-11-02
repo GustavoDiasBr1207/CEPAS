@@ -30,12 +30,24 @@ const allowedOrigins = [
     'http://127.0.0.1'
 ];
 
+// Adiciona origens extras definidas por variável de ambiente (separadas por vírgula)
+if (process.env.EXTRA_ALLOWED_ORIGINS) {
+  process.env.EXTRA_ALLOWED_ORIGINS.split(',').map(origin => origin.trim()).filter(Boolean).forEach(origin => {
+    allowedOrigins.push(origin);
+  });
+}
+
 // Adicionar IP público se definido
 if (process.env.PUBLIC_IP) {
     allowedOrigins.push(`http://${process.env.PUBLIC_IP}`);
     allowedOrigins.push(`http://${process.env.PUBLIC_IP}:80`);
     allowedOrigins.push(`http://${process.env.PUBLIC_IP}:3001`);
     console.log(`✅ CORS configurado para IP público: ${process.env.PUBLIC_IP}`);
+}
+
+console.log('✅ CORS allowedOrigins:', allowedOrigins);
+if (process.env.EXTRA_ALLOWED_ORIGINS) {
+  console.log('✅ CORS EXTRA_ALLOWED_ORIGINS:', process.env.EXTRA_ALLOWED_ORIGINS);
 }
 
 app.use(cors({

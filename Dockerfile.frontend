@@ -18,9 +18,9 @@ COPY public/ ./public/
 COPY src/ ./src/
 
 # Configure a variável de ambiente para o build
-# Para desenvolvimento local, mantém localhost
-# Para Docker, será sobrescrito no docker-compose
-ENV REACT_APP_API_BASE_URL=http://localhost:3001/api
+# Aceita ARG do docker-compose para build dinâmico
+ARG REACT_APP_API_BASE_URL=http://localhost:3001/api
+ENV REACT_APP_API_BASE_URL=${REACT_APP_API_BASE_URL}
 
 # Execute o build do projeto React.
 # Isso vai criar a pasta `build` com os arquivos estáticos otimizados.

@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import Formulario from '../components/Formulario';
+import { API_BASE_URL } from '../config/api';
 
 const CadastroFamilia = () => {
     const { makeAuthenticatedRequest } = useAuth();
@@ -171,7 +172,7 @@ const CadastroFamilia = () => {
                             fontSize: '12px',
                             fontFamily: 'monospace'
                         }}>
-                            <p><strong>API Base URL:</strong> {process.env.REACT_APP_API_BASE_URL || 'http://localhost:3001/api'}</p>
+                            <p><strong>API Base URL:</strong> {API_BASE_URL}</p>
                             <p><strong>Rota de Cadastro:</strong> /familia-completa</p>
                             <p><strong>Status da Conexão:</strong> {connectionStatus}</p>
                             <p><strong>Última mensagem:</strong> {message.text || 'Nenhuma'}</p>
