@@ -36,6 +36,8 @@ const Calendario = () => {
     const [tipoFiltro, setTipoFiltro] = useState('all');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [actionFeedback, setActionFeedback] = useState(null);
+    const [processingEventId, setProcessingEventId] = useState(null);
 
     const carregarEventos = useCallback(async () => {
         if (!hasPermission(['monitor', 'coordenador', 'admin'])) {
@@ -95,6 +97,41 @@ const Calendario = () => {
 
     const limparSelecao = useCallback(() => setSelectedEvent(null), []);
 
+    const handleMarcarCumprida = useCallback(async (event) => {
+        if (!event || event.tipo !== 'agendada') {
+            return;
+        }
+
+        const confirmado = window.confirm('Confirmar que esta visita foi cumprida? A agenda será removida.');
+        if (!confirmado) return;
+
+        setProcessingEventId(event.id);
+        setActionFeedback(null);
+
+        try {
+            const response = await makeAuthenticatedRequest(`/entrevistas/${event.entrevista_id}/concluir-agendamento`, {
+                method: 'PATCH',
+                body: JSON.stringify({ origem: 'calendario' })
+            });
+
+            setActionFeedback({
+                type: 'success',
+                message: response?.message || 'Visita marcada como cumprida com sucesso.'
+            });
+
+            await carregarEventos();
+            setSelectedEvent(null);
+        } catch (err) {
+            console.error('Erro ao concluir agendamento:', err);
+            setActionFeedback({
+                type: 'error',
+                message: err?.message || 'Erro ao concluir agendamento.'
+            });
+        } finally {
+            setProcessingEventId(null);
+        }
+    }, [carregarEventos, makeAuthenticatedRequest]);
+
     return (
         <div className="calendario-container">
             <header className="calendario-header">
@@ -148,6 +185,12 @@ const Calendario = () => {
 
             {error && (
                 <div className="calendario-alerta erro">{error}</div>
+            )}
+
+            {actionFeedback && !error && (
+                <div className={`calendario-alerta ${actionFeedback.type === 'error' ? 'erro' : 'sucesso'}`}>
+                    {actionFeedback.message}
+                </div>
             )}
 
             {loading ? (
@@ -244,6 +287,19 @@ const Calendario = () => {
                                     )}
                                     {selectedEvent.observacoes && (
                                         <p className="observacoes"><strong>Observações:</strong> {selectedEvent.observacoes}</p>
+                                    )}
+
+                                    {selectedEvent.tipo === 'agendada' && (
+                                        <div className="detalhes-acoes">
+                                            <button
+                                                type="button"
+                                                className="detalhes-btn concluir"
+                                                onClick={() => handleMarcarCumprida(selectedEvent)}
+                                                disabled={processingEventId === selectedEvent.id || loading}
+                                            >
+                                                {processingEventId === selectedEvent.id ? 'Marcando...' : 'Marcar como cumprida'}
+                                            </button>
+                                        </div>
                                     )}
                                 </div>
                             ) : (

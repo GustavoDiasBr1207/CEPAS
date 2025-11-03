@@ -814,6 +814,86 @@ router.get('/entrevistas/calendario', authenticateToken, authorize('monitor', 'c
 });
 
 /**
+ * Endpoint: PATCH /api/entrevistas/:id/concluir-agendamento - Marca uma visita agendada como concluída, removendo-a do calendário
+ * Requer autenticação dos perfis monitor, coordenador ou admin
+ */
+router.patch('/entrevistas/:id/concluir-agendamento', authenticateToken, authorize('monitor', 'coordenador', 'admin'), async (req, res) => {
+    const { id } = req.params;
+
+    if (!id || Number.isNaN(Number(id))) {
+        return res.status(400).json({
+            message: 'ID de entrevista inválido.'
+        });
+    }
+
+    let connection;
+
+    try {
+        connection = await oracledb.getConnection(dbConfig);
+
+        const consultaSql = `
+            SELECT id_entrevista, id_familia, proxima_visita, data_entrevista
+            FROM Entrevista
+            WHERE id_entrevista = :id
+            FOR UPDATE
+        `;
+
+        const consultaResult = await connection.execute(
+            consultaSql,
+            { id: Number(id) },
+            { outFormat: oracledb.OUT_FORMAT_OBJECT }
+        );
+
+        if (!consultaResult.rows || consultaResult.rows.length === 0) {
+            await connection.rollback();
+            return res.status(404).json({
+                message: 'Entrevista não encontrada.'
+            });
+        }
+
+        const entrevista = consultaResult.rows[0];
+
+        if (!entrevista.PROXIMA_VISITA) {
+            await connection.rollback();
+            return res.status(400).json({
+                message: 'Esta entrevista não possui visita agendada para concluir.'
+            });
+        }
+
+        await connection.execute(
+            `UPDATE Entrevista SET proxima_visita = NULL, updated_at = SYSDATE WHERE id_entrevista = :id`,
+            { id: Number(id) }
+        );
+
+        await connection.commit();
+
+        res.status(200).json({
+            message: 'Visita agendada marcada como cumprida com sucesso.',
+            entrevista: {
+                id_entrevista: entrevista.ID_ENTREVISTA,
+                id_familia: entrevista.ID_FAMILIA,
+                data_entrevista: entrevista.DATA_ENTREVISTA,
+                proxima_visita: null,
+                concluido_por: req.user?.username || req.user?.nome_completo || null
+            }
+        });
+    } catch (err) {
+        console.error('❌ Erro ao concluir agendamento de entrevista:', err);
+        if (connection) {
+            try { await connection.rollback(); } catch (_) { /* ignore */ }
+        }
+        res.status(500).json({
+            message: 'Erro ao concluir agendamento de entrevista.',
+            error: err.message
+        });
+    } finally {
+        if (connection) {
+            try { await connection.close(); } catch (closeErr) { /* ignore */ }
+        }
+    }
+});
+
+/**
  * Endpoint: GET /api/familias/:id/entrevistas - Histórico completo de entrevistas por família
  * Requer autenticação dos perfis monitor, coordenador ou admin
  */
