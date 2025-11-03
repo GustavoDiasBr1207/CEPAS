@@ -19,11 +19,11 @@ const localizer = dateFnsLocalizer({
 const TIPO_CONFIG = {
     realizada: {
         label: 'Entrevistas realizadas',
-        color: '#2563eb'
+        color: '#1d4ed8'
     },
     agendada: {
         label: 'Visitas agendadas',
-        color: '#16a34a'
+        color: '#f97316'
     }
 };
 

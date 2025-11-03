@@ -268,12 +268,12 @@
 }
 
 .btn-primary {
-    background: #4f46e5;
+    background: linear-gradient(135deg, var(--primary), var(--primary-strong));
     color: #fff;
 }
 
 .btn-primary:hover {
-    background: #4338ca;
+    background: var(--primary-strong);
 }
 
 .btn-secondary {
@@ -287,7 +287,7 @@
 
 .btn-link {
     background: transparent;
-    color: #2563eb;
+    color: var(--primary);
     padding-left: 0;
 }
 

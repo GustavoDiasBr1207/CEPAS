@@ -1,11 +1,12 @@
 /* src/components/MembroForm.css */
 
 .membro-form-container {
-    background: #f8f9fa;
+    background: var(--surface);
     border-radius: 8px;
     padding: 20px;
     margin: 15px 0;
-    border: 1px solid #dee2e6;
+    border: 1px solid var(--card-border);
+    box-shadow: 0 10px 25px rgba(15, 23, 42, 0.05);
 }
 
 .membro-form {
@@ -18,34 +19,34 @@
     align-items: center;
     margin-bottom: 20px;
     padding-bottom: 10px;
-    border-bottom: 2px solid #007bff;
+    border-bottom: 2px solid var(--primary);
 }
 
 .form-header h3 {
     margin: 0;
-    color: #007bff;
+    color: var(--primary);
     font-size: 1.3rem;
 }
 
 .member-id {
-    background: #e9ecef;
+    background: rgba(148, 163, 184, 0.18);
     padding: 4px 8px;
     border-radius: 4px;
     font-size: 0.85rem;
-    color: #6c757d;
+    color: var(--muted);
 }
 
 .form-section {
-    border: 1px solid #ddd;
+    border: 1px solid var(--card-border);
     border-radius: 6px;
     padding: 15px;
     margin-bottom: 20px;
-    background: white;
+    background: var(--surface);
 }
 
 .form-section legend {
-    background: #007bff;
-    color: white;
+    background: linear-gradient(135deg, var(--primary), var(--primary-strong));
+    color: #fff;
     padding: 5px 15px;
     border-radius: 4px;
     font-weight: 600;
@@ -68,7 +69,7 @@
 .form-group label {
     font-weight: 600;
     margin-bottom: 5px;
-    color: #333;
+    color: var(--text);
     font-size: 0.9rem;
 }
 
@@ -76,7 +77,7 @@
 .form-group select,
 .form-group textarea {
     padding: 8px 12px;
-    border: 1px solid #ddd;
+    border: 1px solid rgba(148, 163, 184, 0.35);
     border-radius: 4px;
     font-size: 0.9rem;
     transition: border-color 0.3s ease;
@@ -86,13 +87,13 @@
 .form-group select:focus,
 .form-group textarea:focus {
     outline: none;
-    border-color: #007bff;
-    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(29, 78, 216, 0.18);
 }
 
 .form-group small {
     margin-top: 5px;
-    color: #6c757d;
+    color: var(--muted);
     font-size: 0.8rem;
     font-style: italic;
 }
@@ -126,14 +127,16 @@
     display: flex;
     align-items: center;
     padding: 8px;
-    background: #f8f9fa;
+    background: rgba(29, 78, 216, 0.05);
+    border: 1px solid transparent;
     border-radius: 4px;
     cursor: pointer;
     transition: background-color 0.3s ease;
 }
 
 .checkbox-grid label:hover {
-    background: #e9ecef;
+    background: rgba(29, 78, 216, 0.12);
+    border-color: rgba(29, 78, 216, 0.25);
 }
 
 .checkbox-grid input[type="checkbox"] {
@@ -147,7 +150,7 @@
     gap: 10px;
     margin-top: 25px;
     padding-top: 20px;
-    border-top: 1px solid #dee2e6;
+    border-top: 1px solid var(--card-border);
 }
 
 .btn-cancel,
@@ -163,30 +166,30 @@
 }
 
 .btn-cancel {
-    background: #6c757d;
-    color: white;
+    background: linear-gradient(135deg, rgba(100, 116, 139, 0.85), rgba(71, 85, 105, 0.95));
+    color: #fff;
 }
 
 .btn-cancel:hover {
-    background: #5a6268;
+    background: linear-gradient(135deg, rgba(71, 85, 105, 0.95), rgba(51, 65, 85, 1));
 }
 
 .btn-delete {
-    background: #dc3545;
-    color: white;
+    background: linear-gradient(135deg, var(--danger), #b91c1c);
+    color: #fff;
 }
 
 .btn-delete:hover {
-    background: #c82333;
+    background: linear-gradient(135deg, #b91c1c, #991b1b);
 }
 
 .btn-save {
-    background: #28a745;
-    color: white;
+    background: linear-gradient(135deg, var(--primary), var(--primary-strong));
+    color: #fff;
 }
 
 .btn-save:hover {
-    background: #218838;
+    background: linear-gradient(135deg, var(--primary-strong), #142b8a);
 }
 
 /* Responsividade */
