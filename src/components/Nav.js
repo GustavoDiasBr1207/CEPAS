@@ -20,7 +20,9 @@ const Nav = () => {
       
       <div className="nav-links">
         <Link to="/" className="top-nav-link">🏠 Início</Link>
-        <Link to="/lista-familias" className="top-nav-link">📋 Lista de Famílias</Link>
+    <Link to="/lista-familias" className="top-nav-link">📋 Lista de Famílias</Link>
+    <Link to="/entrevistas" className="top-nav-link">🗒️ Entrevistas</Link>
+    <Link to="/calendario" className="top-nav-link">🗓️ Calendário</Link>
         <Link to="/cadastro" className="top-nav-link">💾 Cadastro Completo</Link>
         <Link to="/cadastro-monitor" className="top-nav-link">👤 Cadastro de Monitores</Link>
         <Link to="/monitores" className="top-nav-link">👥 Lista de Monitores</Link>
